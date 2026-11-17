@@ -1,3 +1,4 @@
+---
 name: Reusable Verify Syntax
 
 on:
@@ -31,8 +32,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ inputs.python-version }}
       - name: Install yamllint
@@ -47,7 +48,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$EXCLUDE_LOCK" = "true" ]; then
-            FILES=$(find .github/workflows -type f \( -name "*.yml" -o -name "*.yaml" \) ! -name "*.lock.yml" ! -name "*.lock.yaml" ! -name "agentics-maintenance.yml")
+            FILES=$(find .github/workflows -type f \( -name "*.yml" -o -name "*.yaml" \) \
+              ! -name "*.lock.yml" ! -name "*.lock.yaml" ! -name "agentics-maintenance.yml")
           else
             FILES=$(find .github/workflows -type f \( -name "*.yml" -o -name "*.yaml" \))
           fi

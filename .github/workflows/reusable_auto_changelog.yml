@@ -1,3 +1,4 @@
+---
 name: Reusable Auto Changelog
 
 on:
@@ -32,7 +33,7 @@ jobs:
   update-changelog:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 0
       - name: Check for existing open changelog PR
@@ -60,7 +61,6 @@ jobs:
           PREV_TAG=$(git tag --sort=-creatordate | grep -vxF "$CURR_TAG" | head -n 1 || true)
           git-chglog --config .chglog/config.yml -o CHANGELOG.tmp
 
-          # Verify latest section is non-empty
           if ! awk '/^<a name=/{c++; next} c==1 && /^- /{found=1; exit} END{exit !found}' CHANGELOG.tmp; then
             echo "Error: latest changelog section in CHANGELOG.tmp is empty."
             exit 1
@@ -94,13 +94,16 @@ jobs:
             RANGE="${PREV_TAG}...${CURR_TAG}"
           fi
           LOG_LINES=$(git log --oneline "$RANGE" | sed 's/^/- /' || true)
+          {
+            echo "### Trigger"
+            echo "Release/dispatch for \`${CURR_TAG}\`"
+            echo ""
+            echo "### Comparison range"
+            echo "\`${RANGE}\`"
+            echo ""
+            echo "### Commits included"
+            echo "${LOG_LINES}"
+          } > /tmp/changelog_pr_body.md
           gh pr create --repo "${{ github.repository }}" --base "$BASE_BRANCH" --head "$PR_BRANCH" \
             --title "[changelog] Update CHANGELOG.md" \
-            --body "### Trigger
-Release/dispatch for \`${CURR_TAG}\`
-
-### Comparison range
-\`${RANGE}\`
-
-### Commits included
-${LOG_LINES}"
+            --body-file /tmp/changelog_pr_body.md
