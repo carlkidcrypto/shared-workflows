@@ -39,7 +39,7 @@ jobs:
       - name: Install yamllint
         run: python -m pip install --only-binary ":all:" "yamllint==${{ inputs.yamllint-version }}"
       - name: Setup actionlint
-        uses: carlkidcrypto/shared-workflows/actions/setup-actionlint@815d697f05f093181374ff84b28757cb8ff468b3
+        uses: carlkidcrypto/shared-workflows/actions/setup-actionlint@815d697f05f093181374ff84b8a1bae6cdb45d13
         with:
           version: ${{ inputs.actionlint-version }}
       - name: Run yamllint & actionlint
