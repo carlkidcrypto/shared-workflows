@@ -24,8 +24,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: '3.14'
       - name: Install yamllint
@@ -40,3 +40,16 @@ jobs:
       - name: Run actionlint
         run: |
           find .github/workflows -name "*.yml" -print0 | xargs -0 actionlint -shellcheck=
+      - name: Verify full 40-char SHA pins
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if grep -rnE 'uses:[[:space:]]*[^#]+@[0-9a-f]{7,39}([[:space:]]|$)' .github/workflows actions; then
+            echo "Error: shortened commit SHA detected; use full 40-char SHAs."
+            exit 1
+          fi
+          for sha in $(grep -rhoE 'carlkidcrypto/shared-workflows/[^@[:space:]]+@[0-9a-f]{40}' .github/workflows actions | sed 's/.*@//' | sort -u); do
+            gh api "repos/carlkidcrypto/shared-workflows/commits/${sha}" --jq '.sha' > /dev/null
+            echo "Verified shared-workflows commit ${sha}"
+          done
