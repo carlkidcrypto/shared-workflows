@@ -1,0 +1,28 @@
+---
+name: Prepare Net-SNMP for Windows wheels
+description: Build Net-SNMP and expose include/lib/bin paths for wheel builds on Windows.
+
+inputs:
+  net-snmp-version:
+    description: Net-SNMP version to build.
+    required: false
+    default: "5.10.rc1"
+  net-snmp-sha256:
+    description: Expected SHA256 hash for the Net-SNMP source archive.
+    required: false
+    default: "a81b239f877910af4959c16e6c71872bd10507404d00650b7cba28df9ce0bb20"
+  arch:
+    description: Target Windows architecture (x64, x86, or arm64).
+    required: false
+    default: "x64"
+
+runs:
+  using: composite
+  steps:
+    - name: Prepare Net-SNMP for Windows wheels
+      shell: pwsh
+      run: |
+        & "${{ github.action_path }}/scripts/prepare_windows_netsnmp.ps1" `
+          -NetSnmpVersion "${{ inputs.net-snmp-version }}" `
+          -NetSnmpSha256 "${{ inputs.net-snmp-sha256 }}" `
+          -Arch "${{ inputs.arch }}"

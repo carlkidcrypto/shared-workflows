@@ -1,0 +1,61 @@
+---
+name: Reusable Verify Syntax
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: Python version for yamllint
+        required: false
+        type: string
+        default: '3.14'
+      yamllint-version:
+        description: yamllint version
+        required: false
+        type: string
+        default: '1.38.0'
+      actionlint-version:
+        description: actionlint release tag
+        required: false
+        type: string
+        default: 'v1.7.12'
+      exclude-lock-yml:
+        description: Exclude gh-aw *.lock.yml and agentics-maintenance.yml
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: ${{ inputs.python-version }}
+      - name: Install yamllint
+        run: python -m pip install --only-binary ":all:" "yamllint==${{ inputs.yamllint-version }}"
+      - name: Setup actionlint
+        uses: carlkidcrypto/shared-workflows/actions/setup-actionlint@815d697
+        with:
+          version: ${{ inputs.actionlint-version }}
+      - name: Run yamllint & actionlint
+        env:
+          EXCLUDE_LOCK: ${{ inputs.exclude-lock-yml }}
+        run: |
+          set -euo pipefail
+          if [ "$EXCLUDE_LOCK" = "true" ]; then
+            FILES=$(find .github/workflows -type f \( -name "*.yml" -o -name "*.yaml" \) \
+              ! -name "*.lock.yml" ! -name "*.lock.yaml" ! -name "agentics-maintenance.yml")
+          else
+            FILES=$(find .github/workflows -type f \( -name "*.yml" -o -name "*.yaml" \))
+          fi
+          if [ -z "$FILES" ]; then
+            echo "No workflow files to lint."
+            exit 0
+          fi
+          echo "$FILES" | xargs -d '\n' yamllint -c .yamllint
+          echo "$FILES" | xargs -d '\n' actionlint -shellcheck=

@@ -1,0 +1,191 @@
+# Blog Post Format & Style Guide for carlkidcrypto.github.io
+
+This reference details the exact syntax, metadata standards, and theme rules required for all blog posts on [carlkidcrypto.github.io](https://carlkidcrypto.github.io).
+
+---
+
+## 1. File Naming and Placement
+
+- **Directory**: `source/blog/`
+- **Filename**: `<slug>.rst` (or `<slug>.md` if authored in MyST Markdown).
+- **Slug convention**: Lowercase, hyphen-delimited, descriptive of the topic.
+  - *Good*: `ezsnmp-cross-platform-installation-troubleshooting.rst`
+  - *Good*: `ezsnmp-high-throughput-multithreading.rst`
+  - *Avoid*: `post1.rst`, `blog_oct28.rst`
+
+---
+
+## 2. Complete reStructuredText Template
+
+```rst
+.. meta::
+   :description: <1-2 sentence search engine description, ~150 chars>
+   :keywords: <Comma-separated keywords for SEO>
+   :author: Carlos Santos (@carlkidcrypto)
+   :property=og:title: <Post Title>
+   :property=og:description: <1-2 sentence search engine description>
+   :property=og:type: article
+   :property=og:url: https://carlkidcrypto.github.io/blog/<slug>.html
+   :property=og:image: https://carlkidcrypto.github.io/_static/logo.png
+   :name=twitter:card: summary
+   :name=twitter:title: <Post Title>
+   :name=twitter:description: <1-2 sentence search engine description>
+   :name=twitter:image: https://carlkidcrypto.github.io/_static/logo.png
+
+==============================================================
+<Post Title with Overline and Underline Matching Length>
+==============================================================
+
+.. note::
+
+   * **Published:** <Month Day, Year>
+   * **Authors:** Written by Gemini 3.8 Flash, Co-Authored & Reviewed by `Carlos Santos (@carlkidcrypto) <https://github.com/carlkidcrypto>`_
+   * **Estimated Reading Time:** <N> minutes
+   * **Tags:** `Tag1` • `Tag2` • `Tag3`
+
+<Section Heading 1>
+===================
+
+Opening introduction explaining why the topic matters, the technical context,
+and who benefits from reading this guide.
+
+<Subsection Heading>
+--------------------
+
+Detailed walkthrough with code snippets, terminal commands, or architecture diagrams.
+
+.. code-block:: python
+
+    from importlib.metadata import version
+    from ezsnmp import Session
+
+    print(f"ezsnmp version: {version('ezsnmp')}")
+
+    with Session(hostname="localhost", community="public", version=2) as session:
+        system_descr = session.get("sysDescr.0")
+        print(system_descr[0].value)
+
+Useful Links & Community
+========================
+
+* **Source Repository**: `carlkidcrypto/<repo> on GitHub <https://github.com/carlkidcrypto/<repo>>`_
+* **PyPI Distribution**: `<package> on PyPI <https://pypi.org/project/<package>/>`_
+* **Documentation**: `Official Documentation <https://carlkidcrypto.github.io/<repo>/>`_
+* **Blog Index**: `Carlos Santos Blog Updates <https://carlkidcrypto.github.io/blog/>`_
+```
+
+---
+
+## 3. Strict Furo Theme Compliance Rules
+
+### A. Zero In-Page Table of Contents (`.. contents::`)
+The **Furo** theme dynamically renders the document's section hierarchy in the right sidebar under the heading **"On this page"**.
+If a blog post includes an explicit `.. contents::` directive:
+- Furo will display a prominent red error banner: *"Secondary sidebar contents already rendered"*.
+- The automated repository check in `.github/scripts/audit_blog_posts.py` will reject the commit.
+
+### B. Headings Hierarchy
+Docutils requires consistent adornment characters across the file. Use:
+1. Document Title: Overline and Underline with `=` (`===...===`)
+2. H1 Section: Underline with `=` (`===...===`)
+3. H2 Subsection: Underline with `-` (`---...---`)
+4. H3 Sub-subsection: Underline with `~` (`~~~...~~~`)
+
+### C. Reading Time Calculation
+Estimate reading time at approximately 200–250 words per minute plus 1 minute per complex code sample.
+
+---
+
+## 4. `source/blog/index.rst` Registration Pattern
+
+Each new post must be registered in two places in `source/blog/index.rst`:
+
+### A. Toctree (Navigation hierarchy)
+Add the slug at the top of the `Articles:` toctree:
+```rst
+.. toctree::
+   :maxdepth: 1
+   :caption: Articles:
+
+   <new-slug>
+   <previous-slug-1>
+   <previous-slug-2>
+```
+
+### B. Responsive Grid Card
+Add a `.. grid-item-card::` under the `All Posts` section:
+```rst
+   .. grid-item-card:: <Emoji> <Title>
+      :link: <new-slug>
+      :link-type: doc
+
+      <Teaser summary highlighting key takeaways and real-world utility.>
+
+      +++
+      📅 *<Month Day, Year>* • ⏱️ *<N> min read* • `<Tag1>` `<Tag2>` `<Tag3>`
+```
+
+---
+
+## 5. Technical Accuracy & Gemini Spark Review Checklist
+
+Before publishing, verify against the common issues identified in Copilot and agent audits:
+
+- **Exception Hierarchy**: Use modern `ezsnmp.exceptions` classes (`GenericError`, `ConnectionError`, `TimeoutError`, `NoSuchInstanceError`, `NoSuchNameError`, `NoSuchObjectError`, `PacketError`, `ParseError`, `UndeterminedTypeError`, `UnknownObjectIDError`). Never use legacy `EasySNMP*` names (e.g. `EasySNMPUndeterminedTypeError` does not exist in ezsnmp—the class is `UndeterminedTypeError`).
+- **Method Signatures**:
+  - `session.get()` takes single string OID or list of OIDs (never tuple notation `('sysDescr', '0')`). Always returns `tuple[Result, ...]`; unpack the scalar element (`session.get(...)[0].value`) before reading values.
+  - `session.walk()` takes a single root OID string.
+  - `session.bulk_walk()` takes only OIDs; configure repetition counts via `Session(set_max_repeaters_to_num=25)` constructor (never pass `max_repetitions`, which raises `TypeError`).
+  - `session.set()` takes OID-type-value triples where values MUST be string representations (e.g. `[oid, 'i', str(int_val)]`), never native Python integers. All nonzero agent response error codes raise `ezsnmp.exceptions.PacketError`.
+- **Result Attributes & Types**:
+  - Use `.index` and `.type` on `Result` objects, never `.oid_index` or `.snmp_type`.
+  - C++ `SessionBase::get` returns `std::vector<Result>`, exposed through SWIG as a tuple of `ezsnmp.Result` instances (never legacy `SNMPVariable`).
+- **Binary & Hex Encoding (PortLists & MACs)**:
+  - SNMP `PortList` bitmasks and MAC addresses formatted as `Hex-STRING` text (e.g. `'80 00'`) must be normalized and decoded using `bytes.fromhex(val.replace(' ', ''))` before evaluating bit positions. Never pass raw hex text to `.encode('latin1')`.
+- **Topology Discovery (LLDP / CDP)**:
+  - LLDP remote tables use 3-part composite indices: `[time_mark].[local_port].[rem_idx]`. Extract full composite keys by examining `.oid` + `.index`.
+  - Local port numbers in LLDP tables do NOT always align with IF-MIB `ifIndex`. Map local ports using `lldpLocPortDesc`.
+  - In production crawlers, query both LLDP and CDP simultaneously and deduplicate link records.
+- **Metrics Exporters (Prometheus & OpenTelemetry)**:
+  - In Prometheus collectors, `ifDescr` is not unique across ports. Include `if_index` in the metric labels to prevent scrape rejection due to duplicate series.
+  - In OpenTelemetry Metrics, register cumulative monotonic byte counters (`ifHCInOctets`) as `ObservableCounter`, never `ObservableGauge`.
+  - Standalone OTel snippets must initialize `MeterProvider` with a periodic reader and keep the application alive to export metric batches.
+- **Telemetry Throughput vs Microbursts**:
+  - 1–5s SNMP polling measures interval-average utilization, not sub-second microbursts or packet buffer drops (which require queue watermarks or streaming sFlow/IPFIX).
+  - While in-memory Arrow queries between Polars and DuckDB are zero-copy, exporting via `.write_parquet(..., compression='zstd')` incurs serialization and compression overhead.
+- **SNMPv2 Result Types**: `NOSUCHOBJECT` and `NOSUCHINSTANCE` return as `Result.type` values, not raised Python exceptions. Check `var.type` explicitly.
+- **Timeouts & Deadlines**:
+  - ezsnmp defaults to `timeout=1` and `retries=3` (~4s total wait budget). Avoid claiming 30-second default wait budgets unless explicit.
+  - Use `time.monotonic()` for circuit breaker and cooldown deadlines to prevent clock drift / NTP adjustments.
+- **Library Versioning**: Do not call `ezsnmp.__version__` or `ezsnmp.version` (attribute does not exist). Use `from importlib.metadata import version; version('ezsnmp')`.
+- **Concurrency & Locking**:
+  - Net-SNMP C library maintains process-global C state protected by internal mutexes. Scaling beyond 4 threads per Python process introduces lock contention. Multi-process architectures (`ProcessPoolExecutor`) provide true process isolation.
+  - A single `Session` instance rebuilds internal C++ argument vectors per call; serialize concurrent calls across OS threads using a `threading.Lock()` (or an `asyncio.Lock()` for serialized coroutines on a single event loop).
+- **Table Navigation**: Independent walks across multiple columns collect data sequentially and are not atomic across high-churn interface changes.
+- **Drop-in Compatibility**: Do not claim 100% drop-in compatibility with Easy SNMP; explain exact modern API differences.
+- **Packaging & Builds**: When explaining C-extensions, distinguish between pre-built binary wheels (which bundle compiled DLLs on Windows) versus source distributions (`sdist`), which require SWIG and compilers.
+- **Code Snippet Reproducibility**: All code samples should pass `validate_blog_code.py` including bytecode compilation and sandbox execution.
+- **RFC 3433 Sensor MIB**: Standard `entPhySensor*` columns. Scale factor exponent is `(scale - 9) * 3`. Celsius is enum value 8 (Hertz is 7).
+- **BGP Telemetry**: `Active(3)` state actively attempts TCP connection establishment before OpenSent. Reconstruct 4-octet IPv4 peer IP dynamically.
+- **VRRP / HSRP Redundancy**: Cross-reconcile gateway pairs concurrently; extract VRID from `[ifIndex].[vrid]`; flag both split-brain and no-master states.
+- **Network Time (NTP/PTP)**: Batch scalar lookups in a single `session.get([...])`; alert on expanding root dispersion before sync fails; use `time.monotonic()` for timers.
+- **Traffic Flow (NetFlow/IPFIX)**: Query scalar exporter drop/export counters via `session.get()`, active flow tables via `bulk_walk()`.
+- **PurpleAir Ecosystem**:
+  * `purpleair_api`: Use `post_create_group_data(name=...)` (not `post_create_group`) and `request_members_data(group_id=...)` (not `request_group_data`).
+  * `purpleair_data_logger`: `PurpleAirPSQLDataLogger` constructor takes `pg8000.connect(...)` database connection; auto-provisions TimescaleDB hypertables, compression policies, and continuous aggregates; executes via `validate_parameters_and_run()`.
+  * `purpleair-matterbridge`: Matter 1.5.1 clustering requires Docker `network_mode: host` for mDNS (UDP 5353) and IPv6 neighbor discovery.
+- **Centralized Findings & Guidelines Reference**: Refer to `COMMON_REVIEW_FINDINGS_AND_GUIDELINES.rst` in Google Drive (`Auto Blog Posts/`) for the comprehensive live catalog of all architectural findings and review feedback.
+
+---
+
+## 6. Mandatory AI Disclaimer Footer
+
+Every blog post authored or co-authored with Gemini must conclude with the following warning admonition at the bottom of the article:
+
+```rst
+----
+
+.. warning::
+
+   AI-generated content may contain misinformation or mistakes. A human does review this, but we are only human.
+```
