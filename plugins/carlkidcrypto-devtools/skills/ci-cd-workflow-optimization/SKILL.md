@@ -1223,5 +1223,15 @@ Codecov's JavaScript Bundle Analysis tracks bundle size changes, asset breakdown
 - Always stage modified or local formulas in a temporary local tap via `brew tap-new --no-git local/<pkg>`, copy the formula to `$(brew --repository)/Library/Taps/local/homebrew-<pkg>/Formula/<pkg>.rb`, and install `local/<pkg>/<pkg>` (see `carlkidcrypto/ezsnmp#1492`).
 - Note: Among `carlkidcrypto` repositories, only `ezsnmp` maintains a Homebrew `Formula/` (`ezsnmp.rb`); sibling repos only install upstream Homebrew build dependencies.
 
+---
+
+### 23. Keep `.yml` Files Focused — Extract Non-Trivial Scripts
+
+Keep `.github/workflows/*.yml` and `actions/*/action.yml` concise and declarative; do not embed large multi-line bash/PowerShell/Python scripts inline:
+
+- **Composite Actions (`actions/<name>/action.yml`)**: Place non-trivial logic in `actions/<name>/scripts/<script>.(ps1|sh|py)` and invoke it via `${{ github.action_path }}/scripts/<script>` with explicit named parameters or environment variables (e.g. `prepare_windows_netsnmp.ps1` with `-NetSnmpVersion`, `-NetSnmpSha256`, `-Arch`).
+- **Repository Workflows (`.github/workflows/*.yml`)**: Place non-trivial logic in `.github/scripts/` (or a shared package/action) so script code can evolve, be linted, and be unit-tested independently of YAML orchestration.
+
+
 
 
