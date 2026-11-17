@@ -1,3 +1,4 @@
+---
 name: Setup actionlint
 description: Download and install a pinned version of actionlint with retries.
 inputs:
