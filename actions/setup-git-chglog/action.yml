@@ -1,0 +1,22 @@
+name: Setup git-chglog
+description: Download and install a pinned version of git-chglog with retries.
+inputs:
+  version:
+    description: git-chglog release version without leading v
+    required: false
+    default: '0.15.4'
+runs:
+  using: composite
+  steps:
+    - name: Install git-chglog
+      shell: bash
+      run: |
+        set -euo pipefail
+        VERSION="${{ inputs.version }}"
+        ARCHIVE="git-chglog_${VERSION}_linux_amd64.tar.gz"
+        URL="https://github.com/git-chglog/git-chglog/releases/download/v${VERSION}/${ARCHIVE}"
+        curl --proto =https -fsSL --retry 5 --retry-delay 2 --retry-all-errors "$URL" -o /tmp/git-chglog.tar.gz
+        tar -xzf /tmp/git-chglog.tar.gz -C /tmp git-chglog
+        sudo mv /tmp/git-chglog /usr/local/bin/git-chglog
+        rm -f /tmp/git-chglog.tar.gz
+        git-chglog --version
