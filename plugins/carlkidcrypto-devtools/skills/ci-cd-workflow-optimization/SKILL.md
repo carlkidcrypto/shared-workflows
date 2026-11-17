@@ -1232,6 +1232,17 @@ Keep `.github/workflows/*.yml` and `actions/*/action.yml` concise and declarativ
 - **Composite Actions (`actions/<name>/action.yml`)**: Place non-trivial logic in `actions/<name>/scripts/<script>.(ps1|sh|py)` and invoke it via `${{ github.action_path }}/scripts/<script>` with explicit named parameters or environment variables (e.g. `prepare_windows_netsnmp.ps1` with `-NetSnmpVersion`, `-NetSnmpSha256`, `-Arch`).
 - **Repository Workflows (`.github/workflows/*.yml`)**: Place non-trivial logic in `.github/scripts/` (or a shared package/action) so script code can evolve, be linted, and be unit-tested independently of YAML orchestration.
 
+---
+
+### 24. DRY Principle (`carlkidcrypto/shared-workflows`)
+
+Follow the **DRY (Don't Repeat Yourself)** principle across `carlkidcrypto` repositories:
+
+- Centralize shared reusable workflows (`reusable_verify_syntax.yml`, `reusable_python_black.yml`, `reusable_sphinx_build.yml`, `reusable_auto_changelog.yml`), composite actions (`actions/prepare-windows-netsnmp`, `actions/setup-git-chglog`, `actions/setup-actionlint`), and `gh-aw` shared fragments (`shared/codecov-coverage.md`) in **`carlkidcrypto/shared-workflows`**.
+- Consumer repositories should reference `carlkidcrypto/shared-workflows/...@<commit_sha>` instead of duplicating workflow/action bodies locally.
+- Whenever skills or `carlkidcrypto-devtools` plugin files are edited locally, always sync the changes into `carlkidcrypto/shared-workflows` (`plugins/carlkidcrypto-devtools/`) via a PR so the repository stays synchronized.
+
+
 
 
 
