@@ -1,0 +1,23 @@
+name: Setup actionlint
+description: Download and install a pinned version of actionlint with retries.
+inputs:
+  version:
+    description: actionlint release tag (e.g. v1.7.12)
+    required: false
+    default: 'v1.7.12'
+runs:
+  using: composite
+  steps:
+    - name: Install actionlint
+      shell: bash
+      run: |
+        set -euo pipefail
+        VERSION="${{ inputs.version }}"
+        VER_NO_V="${VERSION#v}"
+        ARCHIVE="actionlint_${VER_NO_V}_linux_amd64.tar.gz"
+        URL="https://github.com/rhysd/actionlint/releases/download/${VERSION}/${ARCHIVE}"
+        curl --proto =https -fsSL --retry 5 --retry-delay 2 --retry-all-errors "$URL" -o /tmp/actionlint.tar.gz
+        tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
+        sudo mv /tmp/actionlint /usr/local/bin/actionlint
+        rm -f /tmp/actionlint.tar.gz
+        actionlint -version
