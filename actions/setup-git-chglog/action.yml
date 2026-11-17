@@ -1,3 +1,4 @@
+---
 name: Setup git-chglog
 description: Download and install a pinned version of git-chglog with retries.
 inputs:
