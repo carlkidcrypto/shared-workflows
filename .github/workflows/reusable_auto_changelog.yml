@@ -1,0 +1,109 @@
+---
+name: Reusable Auto Changelog
+
+on:
+  workflow_call:
+    inputs:
+      git-chglog-version:
+        description: git-chglog version without leading v
+        required: false
+        type: string
+        default: '0.15.4'
+      tag:
+        description: Optional release tag override
+        required: false
+        type: string
+        default: ''
+      base-branch:
+        description: Target base branch for PR
+        required: false
+        type: string
+        default: 'main'
+      pr-branch:
+        description: Branch name for changelog PRs
+        required: false
+        type: string
+        default: 'automation/update-changelog'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Check for existing open changelog PR
+        id: check_pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          OPEN_PRS=$(gh pr list --repo "${{ github.repository }}" --head "${{ inputs.pr-branch }}" --state open --json number --jq 'length')
+          echo "open_prs=${OPEN_PRS}" >> "$GITHUB_OUTPUT"
+      - name: Setup git-chglog
+        if: steps.check_pr.outputs.open_prs == '0'
+        uses: carlkidcrypto/shared-workflows/actions/setup-git-chglog@815d697
+        with:
+          version: ${{ inputs.git-chglog-version }}
+      - name: Generate and open changelog PR
+        if: steps.check_pr.outputs.open_prs == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_INPUT: ${{ inputs.tag }}
+          BASE_BRANCH: ${{ inputs.base-branch }}
+          PR_BRANCH: ${{ inputs.pr-branch }}
+        run: |
+          set -euo pipefail
+          CURR_TAG="${TAG_INPUT:-${GITHUB_REF_NAME}}"
+          PREV_TAG=$(git tag --sort=-creatordate | grep -vxF "$CURR_TAG" | head -n 1 || true)
+          git-chglog --config .chglog/config.yml -o CHANGELOG.tmp
+
+          if ! awk '/^<a name=/{c++; next} c==1 && /^- /{found=1; exit} END{exit !found}' CHANGELOG.tmp; then
+            echo "Error: latest changelog section in CHANGELOG.tmp is empty."
+            exit 1
+          fi
+
+          if [ -f CHANGELOG.md ]; then
+            tail -n +3 CHANGELOG.md > /tmp/old_body.md || true
+            if diff -q /tmp/old_body.md CHANGELOG.tmp >/dev/null 2>&1; then
+              echo "No substantive changelog changes."
+              exit 0
+            fi
+          fi
+
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          {
+            echo "Last Updated: ${TIMESTAMP}"
+            echo ""
+            cat CHANGELOG.tmp
+          } > CHANGELOG.md
+          rm -f CHANGELOG.tmp
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$PR_BRANCH"
+          git add CHANGELOG.md
+          git commit -m "[changelog] Update CHANGELOG.md"
+          git push -f origin "$PR_BRANCH"
+
+          RANGE="${CURR_TAG}"
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="${PREV_TAG}...${CURR_TAG}"
+          fi
+          LOG_LINES=$(git log --oneline "$RANGE" | sed 's/^/- /' || true)
+          {
+            echo "### Trigger"
+            echo "Release/dispatch for \`${CURR_TAG}\`"
+            echo ""
+            echo "### Comparison range"
+            echo "\`${RANGE}\`"
+            echo ""
+            echo "### Commits included"
+            echo "${LOG_LINES}"
+          } > /tmp/changelog_pr_body.md
+          gh pr create --repo "${{ github.repository }}" --base "$BASE_BRANCH" --head "$PR_BRANCH" \
+            --title "[changelog] Update CHANGELOG.md" \
+            --body-file /tmp/changelog_pr_body.md
