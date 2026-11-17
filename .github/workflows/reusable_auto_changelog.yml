@@ -45,7 +45,7 @@ jobs:
           echo "open_prs=${OPEN_PRS}" >> "$GITHUB_OUTPUT"
       - name: Setup git-chglog
         if: steps.check_pr.outputs.open_prs == '0'
-        uses: carlkidcrypto/shared-workflows/actions/setup-git-chglog@815d697
+        uses: carlkidcrypto/shared-workflows/actions/setup-git-chglog@815d697f05f093181374ff84b28757cb8ff468b3
         with:
           version: ${{ inputs.git-chglog-version }}
       - name: Generate and open changelog PR
