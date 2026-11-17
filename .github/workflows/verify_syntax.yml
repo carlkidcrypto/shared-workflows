@@ -1,0 +1,41 @@
+name: Verify Syntax
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/*.yml'
+      - 'actions/**/action.yml'
+      - '.yamllint'
+      - 'tools/actionlint-version.txt'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/*.yml'
+      - 'actions/**/action.yml'
+      - '.yamllint'
+      - 'tools/actionlint-version.txt'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.14'
+      - name: Install yamllint
+        run: python -m pip install --only-binary ":all:" yamllint==1.38.0
+      - name: Setup actionlint
+        uses: ./actions/setup-actionlint
+        with:
+          version: v1.7.12
+      - name: Run yamllint
+        run: |
+          find .github/workflows actions -name "*.yml" -print0 | xargs -0 yamllint -c .yamllint
+      - name: Run actionlint
+        run: |
+          find .github/workflows -name "*.yml" -print0 | xargs -0 actionlint -shellcheck=
