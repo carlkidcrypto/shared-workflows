@@ -1,0 +1,16 @@
+{
+  "name": "carlkidcrypto-devtools",
+  "displayName": "carlkidcrypto DevTools",
+  "version": "1.0.0",
+  "description": "CI/CD workflow optimization, CalSemVer release management, SonarQube remediation, and technical blog publishing skills for carlkidcrypto repositories.",
+  "author": {
+    "name": "Carlos Santos",
+    "url": "https://github.com/carlkidcrypto"
+  },
+  "repository": "https://github.com/carlkidcrypto/shared-workflows",
+  "suggestedPrompts": [
+    "Audit and optimize GitHub Actions workflows in this repository",
+    "Prepare a CalSemVer release bump PR and verify CI gates",
+    "Triage and remediate open SonarQube Cloud issues in this repository"
+  ]
+}
