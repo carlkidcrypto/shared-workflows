@@ -56,6 +56,7 @@
 
 ### 1. Modular Test Organization (Anti-"Full Coverage" Naming)
 - **Zero Generic Test Catch-Alls**: Never author monolithic test files named `test_full_coverage.*` or `full_coverage.*`.
+- **1,000-Line File Cap & Parameterization**: Keep all test files at or under **1,000 lines**. As soon as a test file grows past 1,000 lines, decompose it into smaller feature-focused files (e.g. splitting `cpp_tests/test_sessionbase.cpp` into `test_sessionbase.cpp`, `test_sessionbase_addressing.cpp`, `test_sessionbase_cli_options.cpp`, and `test_sessionbase_operations.cpp`) and collapse repetitive variant cases into parameterized tests (`TEST_P` / `INSTANTIATE_TEST_SUITE_P` in GoogleTest, `@pytest.mark.parametrize` in pytest).
 - **Feature Set Decomposition**: Group tests into small, cohesive test files targeting specific architectural components or subsystems:
   - Python: `test_cli_and_entrypoints.py`, `test_cli_bridge.py`, `test_locale_and_launcher.py`, `test_gui_server.py`, `test_desktop_tk.py`.
   - C++ (GoogleTest / Meson): `test_json_utils.cpp`, `test_config_and_datatypes.cpp`, `test_queue_and_sinks.cpp`, `test_sink_inspector.cpp`, `test_data_logger_and_cli.cpp`, `test_main_binary.cpp`.
