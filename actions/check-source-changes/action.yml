@@ -1,0 +1,22 @@
+---
+name: Check Source Changes
+description: Detect whether specified files changed using a pinned tj-actions/changed-files.
+
+inputs:
+  files:
+    description: Newline-separated file patterns to check for changes
+    required: true
+
+outputs:
+  any_changed:
+    description: Whether any of the specified files changed ('true' or 'false')
+    value: ${{ steps.changed-files.outputs.any_changed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check for changed files
+      id: changed-files
+      uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96  # v47.0.6
+      with:
+        files: ${{ inputs.files }}

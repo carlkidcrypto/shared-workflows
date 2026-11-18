@@ -1,0 +1,22 @@
+---
+name: Setup Copilot gh-aw
+description: Check out repository without persisting credentials and install the gh-aw CLI extension.
+
+inputs:
+  gh-aw-version:
+    description: gh-aw CLI extension release tag
+    required: false
+    default: 'v0.89.21'
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Install gh-aw extension
+      uses: github/gh-aw-actions/setup-cli@9271a1804551c0dc4fb0085a97979950aa2f8489  # v0.88.2
+      with:
+        version: ${{ inputs.gh-aw-version }}
