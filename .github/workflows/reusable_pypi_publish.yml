@@ -95,10 +95,6 @@ on:
         required: false
         type: number
         default: 7
-    secrets:
-      pypi-token:
-        description: Optional PyPI API token fallback (leave unset to use OIDC Trusted Publishing)
-        required: false
 
 permissions:
   contents: read
@@ -259,8 +255,6 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    env:
-      PYPI_TOKEN: ${{ secrets.pypi-token }}
     steps:
       - name: Download wheel artifacts
         if: ${{ inputs.build-mode == 'cibuildwheel' }}
@@ -276,19 +270,7 @@ jobs:
           name: sdist
           path: dist/
 
-      - name: Publish distribution to ${{ inputs.target == 'testpypi' && 'TestPyPI' || 'PyPI' }} (API token)
-        if: ${{ env.PYPI_TOKEN != '' }}
-        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086  # release/v1.14
-        with:
-          packages-dir: dist/
-          password: ${{ secrets.pypi-token }}
-          repository-url: ${{ inputs.target == 'testpypi' && 'https://test.pypi.org/legacy/' || '' }}
-          skip-existing: ${{ inputs.skip-existing }}
-          verify-metadata: ${{ inputs.verify-metadata }}
-          print-hash: true
-
       - name: Publish distribution to ${{ inputs.target == 'testpypi' && 'TestPyPI' || 'PyPI' }} (OIDC)
-        if: ${{ env.PYPI_TOKEN == '' }}
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086  # release/v1.14
         with:
           packages-dir: dist/
