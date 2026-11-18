@@ -24,6 +24,21 @@ on:
         required: false
         type: boolean
         default: true
+      run-shellcheck:
+        description: Run shellcheck via actionlint
+        required: false
+        type: boolean
+        default: true
+      run-gh-aw:
+        description: Validate gh-aw markdown workflows with gh aw compile --validate
+        required: false
+        type: boolean
+        default: false
+      gh-aw-version:
+        description: gh-aw CLI extension release tag
+        required: false
+        type: string
+        default: 'v0.89.21'
 
 permissions:
   contents: read
@@ -42,9 +57,15 @@ jobs:
         uses: carlkidcrypto/shared-workflows/actions/setup-actionlint@5513565543c092bae6473245135f702332d75a30
         with:
           version: ${{ inputs.actionlint-version }}
+      - name: Install gh-aw extension
+        if: ${{ inputs.run-gh-aw }}
+        uses: github/gh-aw-actions/setup-cli@9271a1804551c0dc4fb0085a97979950aa2f8489  # v0.88.2
+        with:
+          version: ${{ inputs.gh-aw-version }}
       - name: Run yamllint & actionlint
         env:
           EXCLUDE_LOCK: ${{ inputs.exclude-lock-yml }}
+          RUN_SHELLCHECK: ${{ inputs.run-shellcheck }}
         run: |
           set -euo pipefail
           if [ "$EXCLUDE_LOCK" = "true" ]; then
@@ -58,4 +79,17 @@ jobs:
             exit 0
           fi
           echo "$FILES" | xargs -d '\n' yamllint -c .yamllint
-          echo "$FILES" | xargs -d '\n' actionlint -shellcheck=
+          if [ "$RUN_SHELLCHECK" = "true" ]; then
+            echo "$FILES" | xargs -d '\n' actionlint
+          else
+            echo "$FILES" | xargs -d '\n' actionlint -shellcheck=
+          fi
+      - name: Validate gh-aw workflows
+        if: ${{ inputs.run-gh-aw }}
+        run: |
+          set -euo pipefail
+          if compgen -G ".github/workflows/*.md" > /dev/null; then
+            gh aw compile --validate
+          else
+            echo "No gh-aw markdown workflows found."
+          fi

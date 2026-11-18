@@ -13,25 +13,123 @@ on:
         description: Black formatter version
         required: false
         type: string
-        default: '26.3.1'
+        default: '26.5.1'
       target-paths:
-        description: Space-separated paths for black --check
+        description: Space-separated paths for black
         required: false
         type: string
         default: '.'
-
-permissions:
-  contents: read
+      auto-fix-pr:
+        description: Create an automated PR with black formatting fixes instead of only checking
+        required: false
+        type: boolean
+        default: false
+      comment-on-failure:
+        description: Post a comment on the pull request when formatting issues are detected
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   black:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: ${{ inputs.python-version }}
       - name: Install black
         run: python -m pip install --only-binary ":all:" "black==${{ inputs.black-version }}"
-      - name: Run black --check
-        run: black --check --diff ${{ inputs.target-paths }}
+      - name: Run black check
+        if: ${{ !inputs.auto-fix-pr }}
+        id: check
+        env:
+          TARGET_PATHS: ${{ inputs.target-paths }}
+          COMMENT_ON_FAILURE: ${{ inputs.comment-on-failure }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086
+          if ! black --check --diff $TARGET_PATHS; then
+            if [ "$COMMENT_ON_FAILURE" = "true" ] && [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_NUMBER" ]; then
+              gh pr comment "$PR_NUMBER" --body "Black formatting check failed. Please run \`black ${TARGET_PATHS}\` locally and push the changes." || true
+            fi
+            exit 1
+          fi
+      - name: Run black formatter
+        if: ${{ inputs.auto-fix-pr }}
+        env:
+          TARGET_PATHS: ${{ inputs.target-paths }}
+        run: |
+          # shellcheck disable=SC2086
+          black $TARGET_PATHS
+      - name: Check for formatting changes
+        if: ${{ inputs.auto-fix-pr }}
+        id: changed
+        run: |
+          if git diff --exit-code; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Comment on PR when formatting changes detected
+        if: ${{ inputs.auto-fix-pr && inputs.comment-on-failure && steps.changed.outputs.changed == 'true' && github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          TARGET_PATHS: ${{ inputs.target-paths }}
+        run: |
+          gh pr comment "$PR_NUMBER" --body "Black formatting issues were detected for \`${TARGET_PATHS}\`. An automated fix PR is being prepared." || true
+      - name: Create PR for formatting fixes
+        if: >-
+          inputs.auto-fix-pr &&
+          steps.changed.outputs.changed == 'true' &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE_BRANCH="$HEAD_REF"
+          else
+            BASE_BRANCH="$REF_NAME"
+          fi
+
+          SAFE_BASE_BRANCH=$(echo "$BASE_BRANCH" | sed 's/[^a-zA-Z0-9._/-]/_/g')
+          BRANCH_NAME="auto-black-$SAFE_BASE_BRANCH"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin "$BASE_BRANCH"
+          git checkout -B "$BRANCH_NAME" FETCH_HEAD
+          git add -u
+          git commit -m "style: auto-format with black" || echo "No changes to commit"
+          git push origin "$BRANCH_NAME" --force
+
+          PR_NUMBER=$(gh pr list --head "$BRANCH_NAME" --state open --json number --jq '.[0].number')
+          if [ -z "$PR_NUMBER" ]; then
+            gh pr create \
+              --title "style: auto-format with black" \
+              --body "This is an automated PR to fix formatting issues detected by Black." \
+              --base "$BASE_BRANCH" \
+              --head "$BRANCH_NAME"
+          else
+            echo "PR #$PR_NUMBER already exists for $BRANCH_NAME. Updated the branch."
+          fi
+      - name: Note for fork contributors
+        if: >-
+          inputs.auto-fix-pr &&
+          steps.changed.outputs.changed == 'true' &&
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "::warning::Formatting issues were detected. Since this PR is from a fork," \
+            "the bot cannot automatically create a fix PR. Please run black locally."
