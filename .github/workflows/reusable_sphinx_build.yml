@@ -24,6 +24,46 @@ on:
         required: false
         type: string
         default: 'docs'
+      run-doxygen:
+        description: Run Doxygen before building Sphinx docs
+        required: false
+        type: boolean
+        default: false
+      doxygen-config:
+        description: Path to Doxygen configuration file
+        required: false
+        type: string
+        default: '.doxygen'
+      versioned-docs:
+        description: Build versioned HTML output under html_v<version>
+        required: false
+        type: boolean
+        default: false
+      landing-dir:
+        description: Optional landing page Sphinx directory
+        required: false
+        type: string
+        default: ''
+      extra-requirements-file:
+        description: Optional extra pip requirements file
+        required: false
+        type: string
+        default: ''
+      blog-audit-script:
+        description: Optional Python script to audit blog posts before building
+        required: false
+        type: string
+        default: ''
+      deploy-pages:
+        description: Upload artifact and deploy to GitHub Pages
+        required: false
+        type: boolean
+        default: false
+      pre-build-cmd:
+        description: Optional shell command to run before building docs
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -33,6 +73,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: ${{ inputs.python-version }}
@@ -40,12 +83,85 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-sphinx-${{ hashFiles(inputs.requirements-file) }}
+          key: ${{ runner.os }}-pip-sphinx-${{ hashFiles(inputs.requirements-file, inputs.extra-requirements-file) }}
           restore-keys: |
             ${{ runner.os }}-pip-sphinx-
       - name: Install Sphinx dependencies
-        run: python -m pip install -r "${{ inputs.requirements-file }}"
-      - name: Build Sphinx HTML
+        env:
+          REQ_FILE: ${{ inputs.requirements-file }}
+          EXTRA_REQ_FILE: ${{ inputs.extra-requirements-file }}
         run: |
-          sphinx-build -b html "${{ inputs.docs-dir }}/source" "${{ inputs.output-dir }}"
-          touch "${{ inputs.output-dir }}/.nojekyll"
+          python -m pip install -r "$REQ_FILE"
+          if [ -n "$EXTRA_REQ_FILE" ]; then
+            python -m pip install -r "$EXTRA_REQ_FILE"
+          fi
+      - name: Run pre-build command
+        if: inputs.pre-build-cmd != ''
+        run: ${{ inputs.pre-build-cmd }}
+      - name: Run Doxygen
+        if: inputs.run-doxygen
+        env:
+          DOXYGEN_CONFIG: ${{ inputs.doxygen-config }}
+        run: |
+          if ! command -v doxygen >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y doxygen
+          fi
+          mkdir -p doxygen_docs_build
+          doxygen "$DOXYGEN_CONFIG"
+      - name: Run blog audit script
+        if: inputs.blog-audit-script != ''
+        env:
+          AUDIT_SCRIPT: ${{ inputs.blog-audit-script }}
+        run: python3 "$AUDIT_SCRIPT"
+      - name: Build Sphinx HTML
+        env:
+          DOCS_DIR: ${{ inputs.docs-dir }}
+          OUTPUT_DIR: ${{ inputs.output-dir }}
+          LANDING_DIR: ${{ inputs.landing-dir }}
+          VERSIONED_DOCS: ${{ inputs.versioned-docs }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${DOCS_DIR}/source/_static" "${DOCS_DIR}/source/_templates"
+          if [ "$VERSIONED_DOCS" = "true" ] && [ -n "${GITHUB_REF_NAME:-}" ]; then
+            CLEAN_VER="${GITHUB_REF_NAME#v}"
+            CLEAN_VER="${CLEAN_VER#V}"
+            TARGET_DIR="${OUTPUT_DIR}/html_v${CLEAN_VER}"
+          elif [ -n "$LANDING_DIR" ]; then
+            TARGET_DIR="${OUTPUT_DIR}/html"
+          else
+            TARGET_DIR="${OUTPUT_DIR}"
+          fi
+          mkdir -p "$TARGET_DIR"
+          sphinx-build -b html "${DOCS_DIR}/source" "$TARGET_DIR"
+          if [ -n "$LANDING_DIR" ]; then
+            mkdir -p "${LANDING_DIR}/source/_static" "${LANDING_DIR}/source/_templates"
+            sphinx-build -b html "${LANDING_DIR}/source" "$OUTPUT_DIR"
+          fi
+          touch "${OUTPUT_DIR}/.nojekyll"
+      - name: Upload artifact for GitHub Pages
+        if: >-
+          inputs.deploy-pages &&
+          ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          github.event_name == 'workflow_dispatch')
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0
+        with:
+          path: ${{ inputs.output-dir }}
+
+  deploy:
+    if: >-
+      inputs.deploy-pages &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'workflow_dispatch')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346  # v5.0.1
