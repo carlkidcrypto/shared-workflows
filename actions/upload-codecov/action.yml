@@ -1,0 +1,38 @@
+---
+name: Upload to Codecov
+description: Upload coverage or test result files to Codecov using a pinned codecov-action.
+
+inputs:
+  token:
+    description: Codecov upload token
+    required: true
+  files:
+    description: Comma-separated list of files to upload
+    required: false
+    default: ''
+  flags:
+    description: Comma-separated list of Codecov flags
+    required: false
+    default: ''
+  name:
+    description: Custom name for the upload
+    required: false
+    default: ''
+  fail-ci-if-error:
+    description: Fail the CI job if Codecov upload encounters an error
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574  # v5.4.0
+      env:
+        CODECOV_TOKEN: ${{ inputs.token }}
+      with:
+        token: ${{ inputs.token }}
+        files: ${{ inputs.files }}
+        flags: ${{ inputs.flags }}
+        name: ${{ inputs.name }}
+        fail_ci_if_error: ${{ inputs.fail-ci-if-error }}
