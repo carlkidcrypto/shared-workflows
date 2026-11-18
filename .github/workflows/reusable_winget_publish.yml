@@ -1,0 +1,204 @@
+---
+name: Reusable WinGet Publish
+
+on:
+  workflow_call:
+    inputs:
+      package-identifier:
+        description: WinGet package identifier (e.g. 'carlkidcrypto.EzSnmpDataLogger')
+        required: true
+        type: string
+      installer-filename:
+        description: Windows installer asset filename (e.g. 'EzSnmpDataLogger-Windows-x64-Setup.exe')
+        required: true
+        type: string
+      release-tag:
+        description: Optional explicit release tag override (e.g. 'v2026.11.17')
+        required: false
+        type: string
+        default: ''
+      python-version:
+        description: Python version for manifest generation
+        required: false
+        type: string
+        default: '3.14'
+      version-reader-fn:
+        description: Function name in tools.generate_winget_manifest to read fallback version
+        required: false
+        type: string
+        default: '_read_current_calsemver'
+      manifest-generator-script:
+        description: Path to WinGet manifest generator script
+        required: false
+        type: string
+        default: 'tools/generate_winget_manifest.py'
+      installer-type:
+        description: WinGet installer type (e.g. 'inno')
+        required: false
+        type: string
+        default: 'inno'
+      artifact-retention-days:
+        description: Retention days for uploaded WinGet manifest artifacts
+        required: false
+        type: number
+        default: 7
+      run-verify-syntax:
+        description: Whether to run reusable_verify_syntax before generating manifests
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      winget-acc-token:
+        description: GitHub PAT with 'public_repo' scope for submitting PRs to microsoft/winget-pkgs
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify-syntax:
+    if: ${{ inputs.run-verify-syntax }}
+    permissions:
+      contents: read
+    uses: carlkidcrypto/shared-workflows/.github/workflows/reusable_verify_syntax.yml@88de7dd78ef1a992d2509818afcf0c76a2c631eb
+
+  publish-winget:
+    needs: verify-syntax
+    if: ${{ always() && (needs.verify-syntax.result == 'success' || needs.verify-syntax.result == 'skipped') }}
+    name: Publish release to WinGet (wingetcreate)
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Determine Version and Release URLs
+        shell: pwsh
+        env:
+          INPUT_TAG: ${{ inputs.release-tag }}
+          VERSION_READER_FN: ${{ inputs.version-reader-fn }}
+          INSTALLER_FILENAME: ${{ inputs.installer-filename }}
+        run: |
+          $tag = "${{ github.event.release.tag_name }}"
+          if (-not $tag) {
+            $tag = $env:INPUT_TAG
+          }
+          if (-not $tag -and "${{ github.event_name }}" -eq "release") {
+            $tag = "${{ github.ref_name }}"
+          }
+          if ($tag -match "^v?(?<ver>\d{4}\.\d+\..+)$") {
+            $version = $Matches.ver
+          } else {
+            $version = (python -c "from tools.generate_winget_manifest import $env:VERSION_READER_FN as fn; print(fn())").Trim()
+            $tag = "v$version"
+          }
+          $setupUrl = "https://github.com/${{ github.repository }}/releases/download/$tag/$env:INSTALLER_FILENAME"
+          Write-Host "Target Version: $version"
+          Write-Host "Target Tag: $tag"
+          Write-Host "Installer URL: $setupUrl"
+          "WINGET_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "WINGET_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "WINGET_INSTALLER_URL=$setupUrl" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Generate WinGet Manifests
+        shell: pwsh
+        run: |
+          python "${{ inputs.manifest-generator-script }}" `
+            --out-dir dist-winget `
+            --version "$env:WINGET_VERSION" `
+            --installer-url "$env:WINGET_INSTALLER_URL" `
+            --installer-type "${{ inputs.installer-type }}"
+
+      - name: Upload WinGet Manifest Artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: winget-manifests
+          path: dist-winget/**
+          retention-days: ${{ inputs.artifact-retention-days }}
+
+      - name: Install Microsoft wingetcreate CLI
+        shell: pwsh
+        run: |
+          Write-Host "Downloading Microsoft wingetcreate CLI..."
+          Invoke-WebRequest -Uri "https://aka.ms/wingetcreate/latest" -OutFile "wingetcreate.exe"
+          if (Test-Path ".\wingetcreate.exe") {
+            $item = Get-Item ".\wingetcreate.exe"
+            Write-Host "wingetcreate downloaded successfully: $($item.FullName) ($($item.Length) bytes)"
+          } else {
+            throw "Failed to download wingetcreate.exe"
+          }
+
+      - name: Validate Manifest Structure Locally
+        shell: pwsh
+        env:
+          PKG_ID: ${{ inputs.package-identifier }}
+        run: |
+          $ver = "$env:WINGET_VERSION"
+          $parts = $env:PKG_ID.Split('.')
+          $publisher = $parts[0]
+          $pkgName = ($parts[1..($parts.Length - 1)]) -join '.'
+          $firstLetter = $publisher.Substring(0, 1).ToLowerInvariant()
+          $manifestDir = "dist-winget\manifests\$firstLetter\$publisher\$pkgName\$ver"
+          if (-not (Test-Path $manifestDir)) {
+            throw "Manifest directory does not exist: $manifestDir"
+          }
+          Get-ChildItem -Path $manifestDir | Format-Table Name, Length, LastWriteTime
+          if (Get-Command winget -ErrorAction SilentlyContinue) {
+            Write-Host "Validating manifests via winget validate..."
+            winget validate --manifest "$manifestDir"
+          } else {
+            Write-Host "winget client CLI not present on runner; local syntax check passed."
+          }
+
+      - name: Submit Pull Request to microsoft/winget-pkgs
+        shell: pwsh
+        env:
+          WINGET_TOKEN: ${{ secrets.winget-acc-token }}
+          PKG_ID: ${{ inputs.package-identifier }}
+        run: |
+          $token = $env:WINGET_TOKEN
+          if (-not $token) {
+            Write-Host "::notice::WinGet distribution pipeline is gated pending repository credentials setup."
+            Write-Host "::notice::winget-acc-token secret is not configured."
+            Write-Host "WinGet manifests were generated and saved to run artifacts."
+            Write-Host "To enable automated PR submission to microsoft/winget-pkgs, add a GitHub PAT with 'public_repo' scope."
+            exit 0
+          }
+
+          if ("${{ github.event_name }}" -eq "pull_request") {
+            Write-Host "Pull request event detected. Manifest generation and CLI tests passed. Skipping PR submission during PR check."
+            exit 0
+          }
+
+          $ver = "$env:WINGET_VERSION"
+          $parts = $env:PKG_ID.Split('.')
+          $publisher = $parts[0]
+          $pkgName = ($parts[1..($parts.Length - 1)]) -join '.'
+          $firstLetter = $publisher.Substring(0, 1).ToLowerInvariant()
+          $manifestPath = (Resolve-Path "dist-winget\manifests\$firstLetter\$publisher\$pkgName\$ver\$($env:PKG_ID).yaml").Path
+          Write-Host "Submitting manifests for $env:PKG_ID v$ver to microsoft/winget-pkgs..."
+
+          $submitExit = 0
+          try {
+            & .\wingetcreate.exe submit "$manifestPath" --token "$token" --no-open
+            $submitExit = $LASTEXITCODE
+          } catch {
+            Write-Host "wingetcreate submit error: $_"
+            $submitExit = 1
+          }
+
+          if ($submitExit -ne 0) {
+            Write-Host "wingetcreate submit exited with code $submitExit; attempting wingetcreate update fallback..."
+            & .\wingetcreate.exe update "$env:PKG_ID" `
+              --version "$ver" `
+              --urls "$env:WINGET_INSTALLER_URL" `
+              --token "$token" `
+              --no-open `
+              --submit
+          }

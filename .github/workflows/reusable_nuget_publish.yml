@@ -1,0 +1,249 @@
+---
+name: Reusable NuGet Publish
+
+on:
+  workflow_call:
+    inputs:
+      project-path:
+        description: Path to the .csproj file (e.g. 'csharp/PurpleAirAPI.csproj' or 'bindings/csharp/EzSnmpDataLogger.csproj')
+        required: true
+        type: string
+      dotnet-version:
+        description: .NET SDK version
+        required: false
+        type: string
+        default: '8.0.x'
+      python-version:
+        description: Python version for SWIG/Meson/build scripts
+        required: false
+        type: string
+        default: '3.14'
+      environment-name:
+        description: GitHub Actions deployment environment name
+        required: false
+        type: string
+        default: 'build_and_publish_to_nuget'
+      nuget-user:
+        description: NuGet.org username for OIDC Trusted Publishing
+        required: false
+        type: string
+        default: 'carlkidcrypto-nuget'
+      build-runtimes:
+        description: Whether to run the multi-OS native runtime build matrix before packing
+        required: false
+        type: boolean
+        default: false
+      runtime-matrix-json:
+        description: JSON array of native runtime matrix entries ({os, rid})
+        required: false
+        type: string
+        default: '[{"os":"ubuntu-latest","rid":"linux-x64"},{"os":"macos-latest","rid":"osx-arm64"},{"os":"windows-latest","rid":"win-x64"}]'
+      prepare-windows-netsnmp:
+        description: Whether to run shared-workflows/actions/prepare-windows-netsnmp on Windows runtime builds
+        required: false
+        type: boolean
+        default: false
+      net-snmp-version:
+        description: Net-SNMP version for prepare-windows-netsnmp
+        required: false
+        type: string
+        default: '5.10.pre2'
+      net-snmp-sha256:
+        description: Net-SNMP SHA-256 checksum for prepare-windows-netsnmp
+        required: false
+        type: string
+        default: '7a5fc63515f0477d84fb160b6e8a2aee0196117d7e4ffe7d0fba2bdf3a8d72cc'
+      runtime-setup-cmd:
+        description: Optional shell command to install system dependencies in build-runtimes
+        required: false
+        type: string
+        default: ''
+      runtime-build-cmd:
+        description: Shell command to build the native C# runtime in build-runtimes
+        required: false
+        type: string
+        default: ''
+      runtime-artifact-path:
+        description: Base path where runtime RID subdirectories are produced and downloaded
+        required: false
+        type: string
+        default: 'bindings/csharp/runtimes'
+      pack-setup-cmd:
+        description: Optional shell command to run before dotnet pack (e.g. Meson/Ninja or SWIG generation)
+        required: false
+        type: string
+        default: ''
+      pack-extra-args:
+        description: Extra arguments passed to dotnet pack
+        required: false
+        type: string
+        default: ''
+      publish-github-packages:
+        description: Whether to also push .nupkg to GitHub Packages NuGet registry
+        required: false
+        type: boolean
+        default: true
+      github-packages-owner:
+        description: GitHub owner/org for GitHub Packages NuGet registry URL
+        required: false
+        type: string
+        default: 'carlkidcrypto'
+      artifact-retention-days:
+        description: Retention days for uploaded NuGet artifacts
+        required: false
+        type: number
+        default: 7
+      run-verify-syntax:
+        description: Whether to run reusable_verify_syntax before building
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      nuget-api-key:
+        description: Optional NuGet.org API key fallback (leave unset to use OIDC Trusted Publishing)
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  verify-syntax:
+    if: ${{ inputs.run-verify-syntax }}
+    permissions:
+      contents: read
+    uses: carlkidcrypto/shared-workflows/.github/workflows/reusable_verify_syntax.yml@88de7dd78ef1a992d2509818afcf0c76a2c631eb
+
+  build-runtimes:
+    needs: verify-syntax
+    if: ${{ always() && (needs.verify-syntax.result == 'success' || needs.verify-syntax.result == 'skipped') && inputs.build-runtimes }}
+    name: Build C# native runtime for ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.runtime-matrix-json) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Run runtime setup command
+        if: ${{ inputs.runtime-setup-cmd != '' }}
+        shell: bash
+        run: ${{ inputs.runtime-setup-cmd }}
+
+      - name: Prepare Net-SNMP for Windows
+        if: ${{ inputs.prepare-windows-netsnmp && runner.os == 'Windows' }}
+        uses: carlkidcrypto/shared-workflows/actions/prepare-windows-netsnmp@3178143deee5927b0b131bafef683efe8b2484b5
+        with:
+          net-snmp-version: ${{ inputs.net-snmp-version }}
+          net-snmp-sha256: ${{ inputs.net-snmp-sha256 }}
+          arch: x64
+
+      - name: Build native C# runtime
+        if: ${{ inputs.runtime-build-cmd != '' }}
+        shell: bash
+        run: ${{ inputs.runtime-build-cmd }}
+
+      - name: Upload C# runtime artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: csharp-runtime-${{ matrix.rid }}
+          path: ${{ inputs.runtime-artifact-path }}/${{ matrix.rid }}/**
+          retention-days: ${{ inputs.artifact-retention-days }}
+
+  pack-and-publish-nuget:
+    needs: [verify-syntax, build-runtimes]
+    if: >-
+      ${{ always() &&
+      (needs.verify-syntax.result == 'success' || needs.verify-syntax.result == 'skipped') &&
+      (needs.build-runtimes.result == 'success' || needs.build-runtimes.result == 'skipped') }}
+    name: Pack and Publish to NuGet
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment-name }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    env:
+      NUGET_API_KEY: ${{ secrets.nuget-api-key }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
+
+      - name: Run pack setup command
+        if: ${{ inputs.pack-setup-cmd != '' }}
+        shell: bash
+        run: ${{ inputs.pack-setup-cmd }}
+
+      - name: Download all C# runtimes
+        if: ${{ inputs.build-runtimes }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          pattern: csharp-runtime-*
+          path: ${{ inputs.runtime-artifact-path }}
+          merge-multiple: true
+
+      - name: Build and Pack NuGet Package
+        shell: bash
+        run: dotnet pack "${{ inputs.project-path }}" -c Release -o dist-nuget ${{ inputs.pack-extra-args }}
+
+      - name: Upload NuGet Package Artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: nuget-package
+          path: dist-nuget/*.nupkg
+          retention-days: ${{ inputs.artifact-retention-days }}
+
+      - name: Authenticate with NuGet.org (OIDC Trusted Publishing)
+        if: ${{ env.NUGET_API_KEY == '' }}
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841  # v1
+        with:
+          user: ${{ inputs.nuget-user }}
+
+      - name: Publish to NuGet.org
+        shell: bash
+        env:
+          OIDC_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+        run: |
+          API_KEY="${NUGET_API_KEY:-${OIDC_API_KEY}}"
+          if [ -n "$API_KEY" ]; then
+            dotnet nuget push dist-nuget/*.nupkg --api-key "$API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+          else
+            echo "::warning::No NuGet authentication provided; skipping NuGet.org upload. Distribution packages have been saved as workflow artifacts."
+          fi
+
+      - name: Publish to GitHub Packages
+        if: ${{ inputs.publish-github-packages }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -n "$GH_TOKEN" ]; then
+            dotnet nuget add source \
+              --username "${{ inputs.github-packages-owner }}" \
+              --password "$GH_TOKEN" \
+              --store-password-in-clear-text \
+              --name github "https://nuget.pkg.github.com/${{ inputs.github-packages-owner }}/index.json" || true
+            dotnet nuget push dist-nuget/*.nupkg --api-key "$GH_TOKEN" --source github --skip-duplicate || true
+          fi
