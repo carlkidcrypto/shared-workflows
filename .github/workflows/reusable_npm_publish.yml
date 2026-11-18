@@ -1,0 +1,213 @@
+---
+name: Reusable npm Publish
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Working directory containing package.json (e.g. '.', 'javascript', 'bindings/javascript')
+        required: false
+        type: string
+        default: '.'
+      node-version:
+        description: Node.js version to use (Node 24+ required for native OIDC Trusted Publishing)
+        required: false
+        type: string
+        default: '24'
+      needs-python:
+        description: Whether to set up Python before running setup-cmd/build-cmd
+        required: false
+        type: boolean
+        default: false
+      python-version:
+        description: Python version when needs-python is true
+        required: false
+        type: string
+        default: '3.14'
+      setup-cmd:
+        description: Optional shell command to install system dependencies or generate bindings (runs in repo root)
+        required: false
+        type: string
+        default: ''
+      install-cmd:
+        description: Command to install Node dependencies (runs in working-directory)
+        required: false
+        type: string
+        default: 'npm ci'
+      build-cmd:
+        description: Command to build the package (runs in working-directory; empty to skip)
+        required: false
+        type: string
+        default: 'npm run build'
+      test-cmd:
+        description: Optional command to test/lint/typecheck the package (runs in working-directory)
+        required: false
+        type: string
+        default: ''
+      validate-release-tag:
+        description: Validate that git release tag matches package.json version
+        required: false
+        type: boolean
+        default: true
+      pack-and-upload-artifact:
+        description: Run npm pack and upload the .tgz as a workflow artifact
+        required: false
+        type: boolean
+        default: true
+      artifact-retention-days:
+        description: Retention days for uploaded npm tarball artifact
+        required: false
+        type: number
+        default: 7
+      run-verify-syntax:
+        description: Whether to run reusable_verify_syntax before publishing
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      npm-token:
+        description: Optional npm auth token fallback (leave unset to use OIDC Trusted Publishing)
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify-syntax:
+    if: ${{ inputs.run-verify-syntax }}
+    permissions:
+      contents: read
+    uses: carlkidcrypto/shared-workflows/.github/workflows/reusable_verify_syntax.yml@88de7dd78ef1a992d2509818afcf0c76a2c631eb
+
+  publish-npm:
+    needs: verify-syntax
+    if: ${{ always() && (needs.verify-syntax.result == 'success' || needs.verify-syntax.result == 'skipped') }}
+    name: Build and Publish to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        if: ${{ inputs.needs-python }}
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version: ${{ inputs.node-version }}
+          registry-url: https://registry.npmjs.org
+          cache: 'npm'
+          cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+
+      - name: Validate release tag
+        if: ${{ inputs.validate-release-tag && github.ref_type == 'tag' }}
+        working-directory: ${{ inputs.working-directory }}
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          expected_version="${RELEASE_TAG#v}"
+          if [[ "$expected_version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\.([0-9]+)$ ]]; then
+            expected_version="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}"
+          elif [[ "$expected_version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)a([0-9]+)$ ]]; then
+            expected_version="${BASH_REMATCH[1]}-alpha.${BASH_REMATCH[2]}"
+          elif [[ "$expected_version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)b([0-9]+)$ ]]; then
+            expected_version="${BASH_REMATCH[1]}-beta.${BASH_REMATCH[2]}"
+          elif [[ "$expected_version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)rc([0-9]+)$ ]]; then
+            expected_version="${BASH_REMATCH[1]}-rc.${BASH_REMATCH[2]}"
+          fi
+          package_version=$(node -p "require('./package.json').version")
+          if [ "$expected_version" != "$package_version" ]; then
+            echo "Tag $RELEASE_TAG (expected npm version $expected_version) does not match package version $package_version" >&2
+            exit 1
+          fi
+
+      - name: Run setup command
+        if: ${{ inputs.setup-cmd != '' }}
+        shell: bash
+        run: ${{ inputs.setup-cmd }}
+
+      - name: Install Node dependencies
+        if: ${{ inputs.install-cmd != '' }}
+        working-directory: ${{ inputs.working-directory }}
+        shell: bash
+        run: ${{ inputs.install-cmd }}
+
+      - name: Build package
+        if: ${{ inputs.build-cmd != '' }}
+        working-directory: ${{ inputs.working-directory }}
+        shell: bash
+        run: ${{ inputs.build-cmd }}
+
+      - name: Run tests and checks
+        if: ${{ inputs.test-cmd != '' }}
+        working-directory: ${{ inputs.working-directory }}
+        shell: bash
+        run: ${{ inputs.test-cmd }}
+
+      - name: Inspect package contents (dry-run)
+        working-directory: ${{ inputs.working-directory }}
+        shell: bash
+        run: npm pack --dry-run
+
+      - name: Pack npm tarball
+        if: ${{ inputs.pack-and-upload-artifact }}
+        working-directory: ${{ inputs.working-directory }}
+        shell: bash
+        run: npm pack
+
+      - name: Upload npm package artifact
+        if: ${{ inputs.pack-and-upload-artifact }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: npm-package
+          path: ${{ inputs.working-directory }}/*.tgz
+          retention-days: ${{ inputs.artifact-retention-days }}
+
+      - name: Publish to npm
+        working-directory: ${{ inputs.working-directory }}
+        shell: bash
+        env:
+          NPM_TOKEN_FALLBACK: ${{ secrets.npm-token }}
+        run: |
+          set -euo pipefail
+          if [ -n "${NPM_TOKEN_FALLBACK}" ]; then
+            export NODE_AUTH_TOKEN="${NPM_TOKEN_FALLBACK}"
+          fi
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          if npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version >/dev/null 2>&1; then
+            echo "Notice: ${PACKAGE_NAME}@${PACKAGE_VERSION} is already published on npm; skipping publish step."
+            exit 0
+          fi
+          TARBALL=$(ls -1 *.tgz 2>/dev/null | head -n 1 || true)
+          if [[ "$PACKAGE_VERSION" =~ -alpha\. ]] || \
+             [[ "$PACKAGE_VERSION" =~ -a[0-9] ]] || \
+             [[ "$PACKAGE_VERSION" =~ -beta\. ]] || \
+             [[ "$PACKAGE_VERSION" =~ -rc\. ]] || \
+             [[ "$PACKAGE_VERSION" =~ -[0-9]+$ ]] || \
+             [[ "$PACKAGE_VERSION" =~ - ]]; then
+            echo "Publishing prerelease version $PACKAGE_VERSION with tag 'next'..."
+            if [ -n "$TARBALL" ]; then
+              npm publish "$TARBALL" --access public --provenance --tag next
+            else
+              npm publish --access public --provenance --tag next
+            fi
+          else
+            echo "Publishing release version $PACKAGE_VERSION with tag 'latest'..."
+            if [ -n "$TARBALL" ]; then
+              npm publish "$TARBALL" --access public --provenance --tag latest
+            else
+              npm publish --access public --provenance --tag latest
+            fi
+          fi
