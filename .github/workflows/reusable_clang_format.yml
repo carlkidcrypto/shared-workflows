@@ -1,0 +1,137 @@
+---
+name: Reusable Clang-Format Check
+
+on:
+  workflow_call:
+    inputs:
+      target-dirs:
+        description: Space-separated directories to scan for C/C++ files
+        required: false
+        type: string
+        default: '.'
+      file-extensions:
+        description: Space-separated file extensions (without dots) to format
+        required: false
+        type: string
+        default: 'cpp h hpp c'
+      clang-format-version:
+        description: clang-format major version
+        required: false
+        type: string
+        default: '20'
+      exclude-files:
+        description: Space-separated file names to exclude from clang-format
+        required: false
+        type: string
+        default: ''
+      auto-fix-pr:
+        description: Create an automated PR with clang-format fixes instead of only checking
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install clang-format
+        env:
+          CLANG_FORMAT_VERSION: ${{ inputs.clang-format-version }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y "clang-format-${CLANG_FORMAT_VERSION}"
+      - name: Run clang-format
+        env:
+          TARGET_DIRS: ${{ inputs.target-dirs }}
+          FILE_EXTENSIONS: ${{ inputs.file-extensions }}
+          EXCLUDE_FILES: ${{ inputs.exclude-files }}
+          CLANG_FORMAT_VERSION: ${{ inputs.clang-format-version }}
+          AUTO_FIX_PR: ${{ inputs.auto-fix-pr }}
+        run: |
+          set -euo pipefail
+          read -r -a DIRS <<< "$TARGET_DIRS"
+          read -r -a EXTS <<< "$FILE_EXTENSIONS"
+          read -r -a EXCLUDES <<< "$EXCLUDE_FILES"
+
+          FIND_ARGS=("${DIRS[@]}" -type f "(")
+          for i in "${!EXTS[@]}"; do
+            if [ "$i" -gt 0 ]; then
+              FIND_ARGS+=(-o)
+            fi
+            FIND_ARGS+=(-name "*.${EXTS[$i]}")
+          done
+          FIND_ARGS+=(")")
+
+          for excl in "${EXCLUDES[@]}"; do
+            if [ -n "$excl" ]; then
+              FIND_ARGS+=(! -name "$excl")
+            fi
+          done
+
+          if [ "$AUTO_FIX_PR" = "true" ]; then
+            find "${FIND_ARGS[@]}" -exec "clang-format-${CLANG_FORMAT_VERSION}" -i {} +
+          else
+            find "${FIND_ARGS[@]}" -exec "clang-format-${CLANG_FORMAT_VERSION}" --dry-run --Werror {} +
+          fi
+      - name: Check for formatting changes
+        if: ${{ inputs.auto-fix-pr }}
+        id: changed
+        run: |
+          if git diff --exit-code; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Create PR for formatting fixes
+        if: >-
+          inputs.auto-fix-pr &&
+          steps.changed.outputs.changed == 'true' &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE_BRANCH="$HEAD_REF"
+          else
+            BASE_BRANCH="$REF_NAME"
+          fi
+
+          SAFE_BASE_BRANCH=$(echo "$BASE_BRANCH" | sed 's/[^a-zA-Z0-9._/-]/_/g')
+          BRANCH_NAME="auto-clangformat-$SAFE_BASE_BRANCH"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin "$BASE_BRANCH"
+          git checkout -B "$BRANCH_NAME" FETCH_HEAD
+          git add -u
+          git commit -m "style: auto-format with clang-format" || echo "No changes to commit"
+          git push origin "$BRANCH_NAME" --force
+
+          PR_NUMBER=$(gh pr list --head "$BRANCH_NAME" --state open --json number --jq '.[0].number')
+          if [ -z "$PR_NUMBER" ]; then
+            gh pr create \
+              --title "style: auto-format with clang-format" \
+              --body "This is an automated PR to fix formatting issues detected by clang-format." \
+              --base "$BASE_BRANCH" \
+              --head "$BRANCH_NAME"
+          else
+            echo "PR #$PR_NUMBER already exists for $BRANCH_NAME. Updated the branch."
+          fi
+      - name: Note for fork contributors
+        if: >-
+          inputs.auto-fix-pr &&
+          steps.changed.outputs.changed == 'true' &&
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "::warning::Formatting issues were detected. Since this PR is from a fork," \
+            "the bot cannot automatically create a fix PR. Please run clang-format locally."
