@@ -86,6 +86,10 @@ To achieve and maintain a passing Quality Gate and an **A** grade across all met
 
 ## Live SonarCloud REST API Discovery & Inspection
 
+> [!TIP]
+> **Prefer `scripts/query_quality_gates.py` over ad-hoc `curl | jq` snippets.**
+> Use the bundled `scripts/query_quality_gates.py` script (`--project <key>`, `--repo <owner/repo>`, `--pr <num>`, `--include-hotspots`, `--include-codecov`, `--json`) to inspect Quality Gate status, ratings, open issues, security hotspots, and Codecov status in a single structured call (automatically reading `SONAR_TOKEN` and `CODECOV_TOKEN` from the environment if set).
+
 Always inspect live SonarCloud API findings to obtain the exact list of issues, affected file paths, line numbers, and rule identifiers before writing fixes. Public repositories do not require authentication, but token authentication via `SONAR_TOKEN` can be supplied if configured.
 
 ### 1. Project Quality Gate Status
@@ -450,3 +454,9 @@ Before handing off the pull request to the maintainer, verify every step in this
   3. Confirmation that SonarCloud reports **Rating A** and Quality Gate **OK**.
   4. Worktree cleanup confirmation (`git worktree remove` + `git worktree prune`).
 - [ ] **Stop here and let the maintainer merge the PR.**
+
+---
+
+## Bundled Scripts
+
+- `scripts/query_quality_gates.py` — Queries SonarCloud public REST API (`qualitygates/project_status`, `measures/component`, `issues/search`, `hotspots/search` using `SONAR_TOKEN` if set) and optionally Codecov API (`CODECOV_TOKEN` if set) (`--project`, `--repo`, `--pr`, `--include-hotspots`, `--include-codecov`, `--json`).

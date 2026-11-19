@@ -95,6 +95,7 @@ This skill defines the standard procedure for preparing software releases across
 When preparing a release or resolving repository security advisories:
 
 1. **Audit Open Alerts**:
+   Prefer the bundled `scripts/audit_dependabot_and_shas.py` script (`--repo`, `--all-repos`, `--check-workflows`, `--json`) to audit open Dependabot alerts and scan `.github/workflows/*.yml` for unpinned `uses:` references lacking 40-char commit SHAs. Raw `gh api` fallback:
    ```bash
    gh api 'repos/<owner>/<repo>/dependabot/alerts?state=open' --jq '.[] | {number: .number, dependency: .dependency.package.name, severity: .security_advisory.severity, summary: .security_advisory.summary}'
    ```
@@ -332,3 +333,9 @@ When requested to prepare a release:
       - Ensure `.nojekyll` is present for all GitHub Pages documentation deployments.
       - Enforce CalSemVer standards and automated PEP 440 prerelease regex translation (`aN` -> `-alpha.N`, `bN` -> `-beta.N`, `rcN` -> `-rc.N`) across all package manifests and distribution workflows.
       - **Zero-Tolerance Legacy Version Purge**: When a repository transitions to CalSemVer, conduct an exhaustive codebase audit to eliminate all legacy SemVer artifacts (e.g. `2.0.0`, `v2.0.0`, "New in v2.0") across announcements (`README.rst`), unit tests (`test_generate_release_notes.py`), documentation specifications (`software_requirements.rst`), and tooling. Retain legacy version strings only in immutable changelog history or external dependency manifests.
+
+---
+
+## Bundled Scripts
+
+- `scripts/audit_dependabot_and_shas.py` — Lists open Dependabot alerts via `gh api` (gracefully handling 403/404 when Dependabot is disabled) and optionally scans `.github/workflows/*.yml` for unpinned `uses:` tags lacking 40-char commit SHAs (`--repo`, `--all-repos`, `--check-workflows`, `--json`).
