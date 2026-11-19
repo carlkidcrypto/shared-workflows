@@ -1,0 +1,105 @@
+---
+name: Reusable SWIG Multi-Language Bindings
+
+on:
+  workflow_call:
+    inputs:
+      os-list:
+        description: JSON array of runner OS labels
+        required: false
+        type: string
+        default: '["ubuntu-latest", "macos-latest"]'
+      python-version:
+        description: Python version to set up for SWIG binding generation
+        required: false
+        type: string
+        default: '3.13'
+      generator-cmd:
+        description: Command to generate SWIG bindings
+        required: false
+        type: string
+        default: 'python tools/generate_swig_bindings.py --languages python javascript csharp go --out-dir generated_swig'
+      run-verify-syntax:
+        description: Whether to run reusable_verify_syntax before generating bindings
+        required: false
+        type: boolean
+        default: true
+      check-changes:
+        description: Whether to gate execution on changed-files-patterns (bypassed on workflow_dispatch)
+        required: false
+        type: boolean
+        default: true
+      changed-files-patterns:
+        description: Newline-delimited file patterns for tj-actions/changed-files
+        required: false
+        type: string
+        default: |
+          interface/**
+          include/**
+          bindings/**
+          tools/generate_swig_bindings.py
+          .github/workflows/swig_multilang.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify-syntax:
+    if: ${{ inputs.run-verify-syntax }}
+    permissions:
+      contents: read
+    uses: carlkidcrypto/shared-workflows/.github/workflows/reusable_verify_syntax.yml@88de7dd78ef1a992d2509818afcf0c76a2c631eb
+
+  check-source-changes:
+    needs: verify-syntax
+    if: ${{ always() && (needs.verify-syntax.result == 'success' || needs.verify-syntax.result == 'skipped') && inputs.check-changes }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      run_job: ${{ steps.changed-files.outputs.any_changed }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check for changes in SWIG interface or binding tools
+        id: changed-files
+        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96  # v47.0.6
+        with:
+          files: ${{ inputs.changed-files-patterns }}
+
+  swig-4-languages:
+    needs: [verify-syntax, check-source-changes]
+    if: >-
+      ${{ always() &&
+      (needs.verify-syntax.result == 'success' || needs.verify-syntax.result == 'skipped') &&
+      (!inputs.check-changes || needs.check-source-changes.outputs.run_job == 'true' ||
+      github.event_name == 'workflow_dispatch') }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.os-list) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install SWIG 4.x
+        uses: carlkidcrypto/os-specific-runner@8bf8551e08c48d9b72f768392e692fad5bb169e7  # v2.5.0
+        with:
+          linux: sudo apt-get update && sudo apt-get install -y swig
+          macos: brew install swig
+
+      - name: Generate SWIG bindings
+        shell: bash
+        env:
+          GENERATOR_CMD: ${{ inputs.generator-cmd }}
+        run: |
+          eval "${GENERATOR_CMD}"
