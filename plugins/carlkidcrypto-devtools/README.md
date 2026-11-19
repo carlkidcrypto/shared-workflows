@@ -8,6 +8,7 @@ Cross-IDE **Agent Plugins 1.0** bundle packaging `carlkidcrypto` ecosystem skill
 - `release-management`
 - `sonarqube-quality-remediation`
 - `gemini-spark-blog`
+- `repo-fleet-ops`
 - `local-validation-and-dev`
 
 ## Helper Scripts
