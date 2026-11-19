@@ -33,7 +33,7 @@ Composite Actions (``actions/``)
 - ``actions/check-source-changes``: Pinned ``tj-actions/changed-files`` wrapper outputting ``any_changed``.
 - ``actions/prepare-windows-netsnmp``: Installs/configures OpenSSL, Visual Studio environment, and Net-SNMP for Windows ``x64``/``x86``/``arm64`` builds.
 - ``actions/setup-actionlint``: Downloads pinned ``actionlint`` with retries.
-- ``actions/setup-copilot-gh-aw``: Checks out repository (``persist-credentials: false``) and installs the pinned ``gh-aw`` CLI extension.
+- ``actions/setup-copilot-gh-aw``: Checks out repository (``persist-credentials: false``) and installs the ``gh-aw`` CLI extension.
 - ``actions/setup-git-chglog``: Downloads pinned ``git-chglog`` with retries.
 - ``actions/upload-codecov``: Uploads coverage or test results using pinned ``codecov/codecov-action`` with explicit ``token`` and ``CODECOV_TOKEN``.
 
@@ -41,8 +41,9 @@ Shared ``gh-aw`` Fragments (``shared/``)
 ----------------------------------------
 
 - ``shared/codecov-coverage.md``: Pre-fetches Codecov coverage summaries for agentic coverage workflows.
+- ``shared/pr-preflight-checklist.md``: Pre-PR validation checklist covering branch/worktree isolation, ``.github/scripts/`` placement, ``yamllint``/``actionlint``/``black`` checks, unpushed-commit verification, and 2-pass PR review/MAIL comment replies.
 
 Agent Plugins (``plugins/``)
 ----------------------------
 
-- ``plugins/carlkidcrypto-devtools``: Agent Plugins 1.0 bundle (Antigravity + VS Code) containing ``ci-cd-workflow-optimization``, ``release-management``, ``sonarqube-quality-remediation``, ``gemini-spark-blog``, and ``local-validation-and-dev``.
+- ``plugins/carlkidcrypto-devtools``: Agent Plugins 1.0 bundle (Antigravity + VS Code) containing ``ci-cd-workflow-optimization``, ``release-management``, ``sonarqube-quality-remediation``, ``gemini-spark-blog``, and ``local-validation-and-dev``, along with bundled CLI helper scripts under ``skills/*/scripts/``.

@@ -388,4 +388,8 @@ To install a local `ezsnmp_data_logger` worktree or repository non-editably into
 
 ## Bundled Scripts
 
+- `scripts/wt_preflight.sh` — Automates safe Git worktree lifecycle management without modifying or deleting other agents' active worktrees:
+  - `check [--repo-dir PATH]`: Runs `git worktree list`, verifies the primary checkout is clean on `main`/`master`, and detects cloud-sync duplicate refs (`* (*` in `.git/refs`).
+  - `create <repo-dir> <branch> <task-name> [--existing]`: Fetches `origin`, creates `<workspace_root>/wt-<repo>-<task-name>` from `origin/main` (or checks out an existing branch with `--existing`), and prints the worktree path.
+  - `prune <repo-dir> <worktree-path>`: Safely removes and prunes the worktree and verifies `git worktree list`.
 - `scripts/audit_dependabot_and_shas.py` — Lists open Dependabot alerts via `gh api` (gracefully handling 403/404 when Dependabot is disabled) and optionally scans `.github/workflows/*.yml` for unpinned `uses:` tags lacking 40-char commit SHAs (`--repo`, `--all-repos`, `--check-workflows`, `--json`).
