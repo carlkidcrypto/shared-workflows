@@ -63,7 +63,7 @@ This skill documents standard architectures, reusable patterns, and quality gate
 
 ## Core DRY & Pinning Rules
 
-- **DRY Principle (`carlkidcrypto/shared-workflows`)**: Centralize reusable workflows (`reusable_verify_syntax.yml`, `reusable_python_black.yml`, `reusable_sphinx_build.yml`, `reusable_auto_changelog.yml`), composite actions (`actions/prepare-windows-netsnmp`, `actions/setup-git-chglog`, `actions/setup-actionlint`), and `gh-aw` shared fragments (`shared/codecov-coverage.md`) in `carlkidcrypto/shared-workflows` and pin via immutable 40-char `@<sha>`.
+- **DRY Principle (`carlkidcrypto/shared-workflows`)**: Centralize reusable workflows (`reusable_verify_syntax.yml`, `reusable_python_black.yml`, `reusable_clang_format.yml`, `reusable_sphinx_build.yml`, `reusable_auto_changelog.yml`, `reusable_tests_cpp_native.yml`, `reusable_pypi_publish.yml`, `reusable_npm_publish.yml`, `reusable_nuget_publish.yml`, `reusable_winget_publish.yml`), composite actions (`actions/check-source-changes`, `actions/prepare-windows-netsnmp`, `actions/setup-actionlint`, `actions/setup-copilot-gh-aw`, `actions/setup-git-chglog`, `actions/upload-codecov`), and `gh-aw` shared fragments (`shared/codecov-coverage.md`) in `carlkidcrypto/shared-workflows` and pin via immutable 40-char `@<sha>`.
 - **Full 40-Char SHA Verification**: Resolve SHAs programmatically (`git rev-parse <ref>` or `gh api`) and verify resolution before committing—never hand-type or use shortened SHAs.
 - **Never Downgrade Dependabot Pins**: Inspect `origin/main:.github/workflows/` first and use targeted edits so Dependabot-bumped SHAs are preserved.
 - **Keep `.yml` Focused**: Extract non-trivial scripts into `scripts/` next to `.yml` files.
@@ -85,6 +85,7 @@ Read only the specific reference file needed for the current task:
 ## Bundled Scripts
 
 - `scripts/check_open_prs.py` — Scans open PRs, mergeability, base/head topology, and CI pass/fail/pending summaries across all `carlkidcrypto` repositories (`--repo`, `--failing-only`, `--json`).
+- `scripts/watch_pr_ci.py` — Monitors `gh pr checks` for a specific PR (`--pr <num> --repo <owner/repo> [--wait] [--interval 30] [--max-polls 20] [--json]`), handles pending exit code `8` cleanly, summarizes passed/pending/failed/skipped checks, and optionally fetches `--log-failed` or checks `rerun-failed-jobs` eligibility.
 - `scripts/triage_ci_failures.py` — Lists failing workflow runs/jobs on a PR or repository, detects platform infra drops (`conclusion == "cancelled"` with empty steps or `runner_id == 0`), optionally reruns failed jobs, and prints failed step logs (`--repo`, `--pr`, `--run-id`, `--rerun-infra-drops`, `--dry-run`, `--json`, `--max-log-lines`).
 - `scripts/pr_review_threads.py` — Lists inline PR review comments, identifies unreplied threads, and posts formatted threaded replies (`Addressed in commit \`<sha>\`: <message>`) (`--repo`, `--pr`, `--unreplied-only`, `--reply-to`, `--commit`, `--message`, `--json`).
 - `scripts/merge_up_prs.py` — Lists open PRs targeting `main` (skipping stacked PRs unless `--include-stacked` is passed), runs `gh pr update-branch`, and reports updated vs conflicted PRs (`--repo`, `--pr`, `--all-repos`, `--include-stacked`, `--dry-run`, `--json`).
