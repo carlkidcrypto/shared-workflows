@@ -79,6 +79,8 @@ Read only the specific reference file needed for the current task:
 - [packaging-and-trusted-publishing.md](references/packaging-and-trusted-publishing.md) — `cibuildwheel`/`delvewheel`, npm & NuGet OIDC, C++17 ANSI, WinGet, `gh release upload`, desktop packaging, Homebrew 7.0.14+ local tap testing.
 - [coverage-and-testing.md](references/coverage-and-testing.md) — Multi-language Codecov globs, modular test architecture & flakiness prevention, PR coverage comments, JS bundle analysis.
 - [gh-aw-and-shared-workflows.md](references/gh-aw-and-shared-workflows.md) — `gh-aw v1.2.2` compilation/validation, script extraction, and `carlkidcrypto/shared-workflows` DRY standards.
+- [cpp-netsnmp-porting.md](references/cpp-netsnmp-porting.md) — `patches/master_src/` parity pipeline, `getopt()`/`optind`/`optreset` C++17 porting pitfalls, and macOS Net-SNMP 5.10 dev env.
+- [readme-and-hygiene.md](references/readme-and-hygiene.md) — `README.rst` 4-row `flat-square` badge standard, public-repo PII/path hygiene, and Copilot/`gh-aw` quota-exhaustion fallbacks.
 
 ---
 
