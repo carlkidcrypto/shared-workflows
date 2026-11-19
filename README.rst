@@ -16,26 +16,26 @@ Plugins across ``carlkidcrypto`` repositories.
 Reusable Workflows (``.github/workflows/``)
 -------------------------------------------
 
+- ``reusable_verify_syntax.yml``: ``yamllint`` + ``actionlint`` validation (excludes ``*.lock.yml``, ``*.lock.yaml``, and ``agentics-maintenance.yml`` by default) with optional ``gh aw compile --validate``.
+- ``reusable_python_black.yml``: ``black --check --diff`` formatting check with optional automated fix PRs and PR failure comments.
+- ``reusable_clang_format.yml``: ``clang-format`` C/C++ formatting check with optional automated fix PRs.
+- ``reusable_sphinx_build.yml``: Python 3.14 Sphinx HTML build with pip caching, optional Doxygen, versioned docs, landing page, blog audit, ``.nojekyll``, and GitHub Pages deployment.
 - ``reusable_auto_changelog.yml``: Deterministic ``git-chglog`` changelog updater and PR creator.
-- ``reusable_clang_format.yml``: ``clang-format`` C/C++ formatting check across configurable target directories and file extensions.
-- ``reusable_npm_publish.yml``: Idempotent npm package build and OIDC Trusted Publishing (``--provenance --access public``) on Node.js 24+.
-- ``reusable_nuget_publish.yml``: .NET / NuGet package build and OIDC Trusted Publishing (``--skip-duplicate``).
-- ``reusable_pypi_publish.yml``: Pure-Python or ``cibuildwheel`` package build and OIDC Trusted Publishing to PyPI or TestPyPI.
-- ``reusable_python_black.yml``: ``black --check --diff`` formatting check.
-- ``reusable_sphinx_build.yml``: Python 3.14 Sphinx HTML build with pip caching and ``.nojekyll``.
-- ``reusable_tests_cpp_native.yml``: Cross-platform C++ native build and test runner (Meson or CMake, with optional Net-SNMP and OpenSSL setup).
-- ``reusable_verify_syntax.yml``: ``yamllint`` + ``actionlint`` (with optional ``shellcheck``) validation (excludes ``*.lock.yml`` and ``agentics-maintenance.yml`` by default).
-- ``reusable_winget_publish.yml``: WinGet manifest generation and ``wingetcreate`` PR submission for Windows release installers.
+- ``reusable_tests_cpp_native.yml``: Multi-OS (``ubuntu-latest`` / ``macos-latest``) C++ native build and test runner (Meson or CMake) with optional ``snmpd`` and Codecov upload.
+- ``reusable_pypi_publish.yml``: ``cibuildwheel`` / ``pure-python`` wheel and sdist builder with pure OIDC Trusted Publishing to PyPI or TestPyPI.
+- ``reusable_npm_publish.yml``: Node.js 24+ npm build, test, pack, and OIDC Trusted Publishing (``--provenance --access public``, no ``NPM_TOKEN`` required once configured).
+- ``reusable_nuget_publish.yml``: Optional multi-OS C# native runtime matrix, ``dotnet pack``, and NuGet.org OIDC Trusted Publishing (plus optional GitHub Packages push).
+- ``reusable_winget_publish.yml``: WinGet manifest generation, ``winget validate`` check, artifact upload, and ``wingetcreate`` PR submission.
 
 Composite Actions (``actions/``)
 --------------------------------
 
-- ``actions/check-source-changes``: Detects whether specified file patterns changed using a pinned ``tj-actions/changed-files``.
-- ``actions/prepare-windows-netsnmp``: Installs/configures OpenSSL, Visual Studio environment, and Net-SNMP for Windows ``x64``/``x86``/``arm64`` wheel builds.
-- ``actions/setup-actionlint``: Downloads and installs a pinned ``actionlint`` release with retries.
-- ``actions/setup-copilot-gh-aw``: Checks out the repository (``persist-credentials: false``) and installs the ``gh-aw`` CLI extension.
-- ``actions/setup-git-chglog``: Downloads and installs a pinned ``git-chglog`` release with retries.
-- ``actions/upload-codecov``: Uploads coverage or test result files to Codecov using a pinned ``codecov/codecov-action``.
+- ``actions/check-source-changes``: Pinned ``tj-actions/changed-files`` wrapper outputting ``any_changed``.
+- ``actions/prepare-windows-netsnmp``: Installs/configures OpenSSL, Visual Studio environment, and Net-SNMP for Windows ``x64``/``x86``/``arm64`` builds.
+- ``actions/setup-actionlint``: Downloads pinned ``actionlint`` with retries.
+- ``actions/setup-copilot-gh-aw``: Checks out repository (``persist-credentials: false``) and installs the ``gh-aw`` CLI extension.
+- ``actions/setup-git-chglog``: Downloads pinned ``git-chglog`` with retries.
+- ``actions/upload-codecov``: Uploads coverage or test results using pinned ``codecov/codecov-action`` with explicit ``token`` and ``CODECOV_TOKEN``.
 
 Shared ``gh-aw`` Fragments (``shared/``)
 ----------------------------------------
@@ -46,4 +46,4 @@ Shared ``gh-aw`` Fragments (``shared/``)
 Agent Plugins (``plugins/``)
 ----------------------------
 
-- ``plugins/carlkidcrypto-devtools``: Agent Plugins 1.0 bundle (Antigravity + VS Code) containing ``ci-cd-workflow-optimization``, ``release-management``, ``sonarqube-quality-remediation``, and ``gemini-spark-blog``, along with bundled CLI helper scripts under ``skills/*/scripts/``.
+- ``plugins/carlkidcrypto-devtools``: Agent Plugins 1.0 bundle (Antigravity + VS Code) containing ``ci-cd-workflow-optimization``, ``release-management``, ``sonarqube-quality-remediation``, ``gemini-spark-blog``, and ``local-validation-and-dev``, along with bundled CLI helper scripts under ``skills/*/scripts/``.
