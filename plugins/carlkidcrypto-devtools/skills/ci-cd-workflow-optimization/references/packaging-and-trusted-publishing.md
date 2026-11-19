@@ -305,16 +305,16 @@ Across repositories distributing multi-language bindings and packages (`ezsnmp_d
    - Packages and preserves `.tgz` archive to workflow run artifacts before publishing.
    - Safely negotiates authentication (OIDC with fallback to `NPM_TOKEN`), pre-checks existing package versions on npm, and publishes with `--access public --provenance` (using `--tag next` for prereleases, `--tag latest` for stable releases).
 
-3. **PyPI (`build_and_publish_to_pypi.yml`)**:
-   - Compiles binary wheels across `ubuntu-latest`, `windows-latest`, `macos-13` (x86_64), and `macos-14` (arm64) using `cibuildwheel`.
+3. **PyPI (`build_and_publish_to_pypi.yml` / `reusable_pypi_publish.yml`)**:
+   - Compiles binary wheels across `ubuntu-latest`, `windows-latest`, and `macos-latest` using `cibuildwheel`.
    - Builds source distribution (`sdist`) via `python -m build`.
    - Decoupled packaging and artifact uploads (`wheels-*`, `sdist`) before publishing.
-   - Publishes to PyPI via `pypa/gh-action-pypi-publish@release/v1.14` with OIDC Trusted Publishing and `skip-existing: true`.
+   - Publishes to PyPI via `pypa/gh-action-pypi-publish@release/v1.14` with **pure OIDC Trusted Publishing** (`id-token: write`, no `PYPI_API_TOKEN` / `secrets.pypi-token` fallback) and `skip-existing: true`.
 
-4. **TestPyPI (`build_and_publish_to_test_pypi.yml`)**:
+4. **TestPyPI (`build_and_publish_to_test_pypi.yml` / `reusable_pypi_publish.yml`)**:
    - Push-to-`main` gated test distribution protected by smart file-change detection (`tj-actions/changed-files@v47.0.6`).
    - Decoupled wheel and sdist artifact preservation.
-   - Publishes to `https://test.pypi.org/legacy/` with `skip-existing: true`.
+   - Publishes to `https://test.pypi.org/legacy/` via **pure OIDC Trusted Publishing** (`id-token: write`, no token fallback) with `skip-existing: true`.
 
 5. **Go (`build_and_publish_to_go.yml`)**:
    - Configures Go 1.23, compiles C++ core and SWIG Go bindings, and executes test suite (`go test -v ./tests/...`).
