@@ -88,3 +88,23 @@ Read only the specific reference file needed for the current task:
 
 - `scripts/check_open_prs.py` — Scans open PRs, mergeability, base/head topology, and CI pass/fail/pending summaries across all `carlkidcrypto` repositories (`--repo`, `--failing-only`, `--json`).
 - `scripts/watch_pr_ci.py` — Monitors `gh pr checks` for a specific PR (`--pr <num> --repo <owner/repo> [--wait] [--interval 30] [--max-polls 20] [--json]`), handles pending exit code `8` cleanly, summarizes passed/pending/failed/skipped checks, and optionally fetches `--log-failed` or checks `rerun-failed-jobs` eligibility.
+- `scripts/triage_ci_failures.py` — Lists failing workflow runs/jobs on a PR or repository, detects platform infra drops (`conclusion == "cancelled"` with empty steps or `runner_id == 0`), optionally reruns failed jobs, and prints failed step logs (`--repo`, `--pr`, `--run-id`, `--rerun-infra-drops`, `--dry-run`, `--json`, `--max-log-lines`).
+- `scripts/pr_review_threads.py` — Lists inline PR review comments, identifies unreplied threads, and posts formatted threaded replies (`Addressed in commit \`<sha>\`: <message>`) (`--repo`, `--pr`, `--unreplied-only`, `--reply-to`, `--commit`, `--message`, `--json`).
+- `scripts/merge_up_prs.py` — Lists open PRs targeting `main` (skipping stacked PRs unless `--include-stacked` is passed), runs `gh pr update-branch`, and reports updated vs conflicted PRs (`--repo`, `--pr`, `--all-repos`, `--include-stacked`, `--dry-run`, `--json`).
+- `scripts/worktree_hygiene.py` — Scans git repositories under `<workspace_root>/`, verifies primary checkouts are clean on `main`/default branch, lists `git worktree list` entries, flags stale `wt-*` worktrees, and detects/optionally cleans `.git/refs` cloud-sync duplicates (`--root`, `--prune-merged`, `--clean-cloud-refs`, `--dry-run`, `--json`).
+- `scripts/validate_workflows.py` — Discovers `.github/workflows/*.yml` and `.md` agentic workflows (or specified files), runs `yamllint` and `actionlint` if installed, and optionally runs `gh aw compile --validate` (`--repo-dir`, `--files`, `--compile-gh-aw`, `--json`).
+
+---
+
+## Cross-Repo DRY Sync Checklist
+
+When updating shared workflows, composite actions, `gh-aw` fragments, or `carlkidcrypto-devtools` plugin files, verify synchronization across all 8 `carlkidcrypto` repositories using isolated `<workspace_root>/wt-<repo>-<task>` worktrees:
+
+- [ ] `carlkidcrypto/shared-workflows` — Canonical source for reusable workflows, composite actions, `gh-aw` shared fragments, and `plugins/carlkidcrypto-devtools/`.
+- [ ] `carlkidcrypto/ezsnmp` — Native C++17/SWIG Python bindings; verify SHA pins, `cibuildwheel`, and `reusable_*` caller workflows.
+- [ ] `carlkidcrypto/ezsnmp_data_logger` — Multi-language CMake/SWIG & desktop packaging; verify SHA pins and `reusable_*` caller workflows.
+- [ ] `carlkidcrypto/purpleair_api` — Multi-language Meson/SWIG; verify SHA pins and `reusable_*` caller workflows.
+- [ ] `carlkidcrypto/purpleair_data_logger` — Python/C++ telemetry logger & Sphinx docs; verify SHA pins and `reusable_*` caller workflows.
+- [ ] `carlkidcrypto/purpleair-matterbridge` — Node.js/TypeScript Matterbridge plugin; verify SHA pins and `reusable_*` caller workflows.
+- [ ] `carlkidcrypto/carlkidcrypto.github.io` — Technical blog & Sphinx/GitHub Pages site; verify `reusable_*` caller workflows and `audit_blog_posts.py`.
+- [ ] `carlkidcrypto/os-specific-runner` — Cross-platform GitHub Action; verify SHA pins, Node.js bundle, and `reusable_*` caller workflows.
