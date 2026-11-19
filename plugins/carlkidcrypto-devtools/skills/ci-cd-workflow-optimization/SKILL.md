@@ -29,30 +29,30 @@ This skill documents standard architectures, reusable patterns, and quality gate
 
 > [!IMPORTANT]
 > **Always isolate local workflow updates and branch testing using Git Worktrees.**
-> Multiple agents (the human maintainer, background workflows, Dependabot, Copilot, and other agentic assistants) operate simultaneously on the host machine. Checking out branches or running dirty builds in `$HOME/Documents/GitHub/<repo>` breaks other agents' working states.
+> Multiple agents (the human maintainer, background workflows, Dependabot, Copilot, and other agentic assistants) operate simultaneously on the host machine. Checking out branches or running dirty builds in `<workspace_root>/<repo>` breaks other agents' working states.
 >
 > **Mandatory Worktree Workflow**:
 > 1. **Check Active Worktrees**: Run `git worktree list` first to discover existing active worktrees, their directory paths, and active branches before switching or adding, preventing branch collisions (`fatal: '<branch>' is already used by worktree at ...`).
-> 2. **Keep Primary Checkout Clean**: The primary checkout `$HOME/Documents/GitHub/<repo>` must remain clean on `main` at all times. Never switch branches or leave unstaged/staged dirty files in the primary repository checkout root.
-> 3. **Spawn Dedicated Worktree in Sibling Directory**: Place dedicated worktrees in sibling directories (e.g. `$HOME/Documents/GitHub/<repo>-<task-name>` or `$HOME/Documents/GitHub/wt-<repo>-<task-name>`). Never create worktrees in `/tmp` or `~/.gemini/` unless explicitly requested.
+> 2. **Keep Primary Checkout Clean**: The primary checkout `<workspace_root>/<repo>` must remain clean on `main` at all times. Never switch branches or leave unstaged/staged dirty files in the primary repository checkout root.
+> 3. **Spawn Dedicated Worktree in Sibling Directory**: Place dedicated worktrees in sibling directories (e.g. `<workspace_root>/<repo>-<task-name>` or `<workspace_root>/wt-<repo>-<task-name>`). Never create worktrees in `/tmp` or `~/.gemini/` unless explicitly requested.
 >    ```bash
 >    # Fetch latest remote references first:
 >    git fetch origin
 >
 >    # For a new feature/fix branch from origin/main:
->    git worktree add -b <branch-name> $HOME/Documents/GitHub/wt-<repo>-<task-name> origin/main
->    cd $HOME/Documents/GitHub/wt-<repo>-<task-name>
+>    git worktree add -b <branch-name> <workspace_root>/wt-<repo>-<task-name> origin/main
+>    cd <workspace_root>/wt-<repo>-<task-name>
 >
 >    # Or for checking out an existing branch:
->    git worktree add $HOME/Documents/GitHub/wt-<repo>-<task-name> <branch-name>
->    cd $HOME/Documents/GitHub/wt-<repo>-<task-name>
+>    git worktree add <workspace_root>/wt-<repo>-<task-name> <branch-name>
+>    cd <workspace_root>/wt-<repo>-<task-name>
 >    ```
-> 4. **Execute Everything Inside Worktree**: Run all workflow edits, syntax validation (`actionlint`, `yamllint`), builds, tests, local formatters (`black`, `prettier`, `csharpier`), targeted staging (`git add <files>`), and `gh pr create` strictly inside `$HOME/Documents/GitHub/wt-<repo>-<task-name>`.
+> 4. **Execute Everything Inside Worktree**: Run all workflow edits, syntax validation (`actionlint`, `yamllint`), builds, tests, local formatters (`black`, `prettier`, `csharpier`), targeted staging (`git add <files>`), and `gh pr create` strictly inside `<workspace_root>/wt-<repo>-<task-name>`.
 > 5. **Handle Upstream & Remote Syncs**: Sibling background agentic workflows (like `sync_open_prs_with_main`) frequently merge `main` into open PR branches while working. If a push is rejected, run `git pull --rebase origin <branch-name>` inside the worktree before retrying.
 > 6. **Handle Maintainer-Merged PR Follow-ups**: If an open PR has already been merged into `main` by the maintainer while follow-up commits are prepared, do not force-push over merged commits. Fetch `origin`, branch cleanly from `origin/main` (`git checkout -b <fix-branch> origin/main`), cherry-pick the required commit (`git cherry-pick <sha>`), and submit a new PR cleanly.
 > 7. **Clean Pruning**: Never overwrite or delete other agents' active worktrees. Prune your worktree once the PR is merged or closed:
 >    ```bash
->    git worktree remove $HOME/Documents/GitHub/wt-<repo>-<task-name>
+>    git worktree remove <workspace_root>/wt-<repo>-<task-name>
 >    git worktree prune
 >    ```
 >    Verify `git worktree list` confirms the worktree was cleanly detached without dangling metadata.

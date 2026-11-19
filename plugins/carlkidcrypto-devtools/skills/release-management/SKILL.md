@@ -28,23 +28,23 @@ This skill defines the standard procedure for preparing software releases across
 
 > [!IMPORTANT]
 > **Always isolate tasks using Git Worktrees.**
-> Multiple agents (the human maintainer, background agentic workflows, Dependabot, Copilot, and other agentic assistants) frequently operate simultaneously across local workspaces. Switching branches or leaving unstaged changes in the primary repo clone (`$HOME/Documents/GitHub/<repo>`) leads to branch flapping, corrupted working states, git stash collisions, and broken builds.
+> Multiple agents (the human maintainer, background agentic workflows, Dependabot, Copilot, and other agentic assistants) frequently operate simultaneously across local workspaces. Switching branches or leaving unstaged changes in the primary repo clone (`<workspace_root>/<repo>`) leads to branch flapping, corrupted working states, git stash collisions, and broken builds.
 >
 > **Standard Worktree Rules & Lifecycle**:
 > 1. **Discover Active Worktrees**: Run `git worktree list` first to discover existing active worktrees, their directory paths, and active branches before switching or adding, preventing branch collisions (`fatal: '<branch>' is already used by worktree at ...`).
-> 2. **Keep Primary Clone Clean**: Never checkout feature branches or leave dirty working trees in `$HOME/Documents/GitHub/<repo>`. The primary checkout must stay clean on the default branch (`main`).
-> 3. **Create Dedicated Worktree in Sibling Directory**: Place dedicated worktrees in sibling directories (e.g. `$HOME/Documents/GitHub/<repo>-<task-name>` or `$HOME/Documents/GitHub/wt-<repo>-<task-name>`). Never create worktrees in `/tmp` or `~/.gemini/` unless explicitly requested.
+> 2. **Keep Primary Clone Clean**: Never checkout feature branches or leave dirty working trees in `<workspace_root>/<repo>`. The primary checkout must stay clean on the default branch (`main`).
+> 3. **Create Dedicated Worktree in Sibling Directory**: Place dedicated worktrees in sibling directories (e.g. `<workspace_root>/<repo>-<task-name>` or `<workspace_root>/wt-<repo>-<task-name>`). Never create worktrees in `/tmp` or `~/.gemini/` unless explicitly requested.
 >    ```bash
 >    # Fetch latest remote references first:
 >    git fetch origin
 >
 >    # For a new feature, fix, or release branch from origin/main:
->    git worktree add -b <branch-name> $HOME/Documents/GitHub/wt-<repo>-<task-name> origin/main
->    cd $HOME/Documents/GitHub/wt-<repo>-<task-name>
+>    git worktree add -b <branch-name> <workspace_root>/wt-<repo>-<task-name> origin/main
+>    cd <workspace_root>/wt-<repo>-<task-name>
 >
 >    # Or for checking out an existing branch:
->    git worktree add $HOME/Documents/GitHub/wt-<repo>-<task-name> <branch-name>
->    cd $HOME/Documents/GitHub/wt-<repo>-<task-name>
+>    git worktree add <workspace_root>/wt-<repo>-<task-name> <branch-name>
+>    cd <workspace_root>/wt-<repo>-<task-name>
 >    ```
 > 4. **Execute In-Tree Only**: Run all dependency installations (`npm install`, `pip install --only-binary ":all:" ...`), code generation (SWIG), builds, tests, formatters (`black`, `prettier`, `csharpier`), targeted staging (`git add <files>`), and `gh pr create` strictly inside the worktree directory.
 > 5. **Handle Concurrent Remote Syncs**: Sibling background agentic workflows (`sync_open_prs_with_main`) automatically push merges from `main` into open PR branches. If a push is rejected, run `git pull --rebase origin <branch-name>` inside the worktree before retrying.
@@ -52,7 +52,7 @@ This skill defines the standard procedure for preparing software releases across
 > 7. **Handle Maintainer-Merged PR Follow-ups**: If an open PR has already been merged into `main` by the maintainer while follow-up commits are prepared, do not force-push over merged commits. Fetch `origin`, branch cleanly from `origin/main` (`git checkout -b <fix-branch> origin/main`), cherry-pick the required commit (`git cherry-pick <sha>`), and submit a new PR cleanly.
 > 8. **Respect Other Agents & Clean Pruning**: Never modify or remove another agent's active worktree. Once your PR is submitted or merged, cleanly prune the worktree:
 >    ```bash
->    git worktree remove $HOME/Documents/GitHub/wt-<repo>-<task-name>
+>    git worktree remove <workspace_root>/wt-<repo>-<task-name>
 >    git worktree prune
 >    ```
 >    Verify `git worktree list` confirms the worktree was cleanly detached without dangling metadata.
@@ -209,7 +209,7 @@ When requested to prepare a release:
      git worktree add -b release/v<version> ../<repo>-release-v<version> origin/main
      cd ../<repo>-release-v<version>
      ```
-   - Never switch branches or leave dirty states in the primary checkout root (`$HOME/Documents/GitHub/<repo>`).
+   - Never switch branches or leave dirty states in the primary checkout root (`<workspace_root>/<repo>`).
 
 3. **Execute Version Bump & Touchpoint Sync**:
    - Run `./release_tools/bump_version.sh <version>` (or pass dependency version e.g. `./release_tools/bump_version.sh <version> <dep_version>`).
