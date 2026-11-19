@@ -133,3 +133,9 @@ Always leave the worktree clean before staging (`git add <file1> <file2>`) and p
   rm -rf build *.egg-info .meson_build_validate doxygen_docs_build/doxygen sphinx_docs_build/_build .pytest_cache
   git status
   ```
+
+---
+
+## 5. Consolidated Agent Personas & Repository Skills
+
+- [repo-skills-and-personas.md](references/repo-skills-and-personas.md) — Canonical rules for `the_scribe.md` (`../../agents/the_scribe.md`), `pull-request-guide`, `sphinx-docs`, `python-testing`, and `cpp-testing` shared across all `carlkidcrypto` repositories.
