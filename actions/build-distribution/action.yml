@@ -1,0 +1,75 @@
+---
+name: Build Distribution
+description: Build Python sdist (and optional wheel) and download built wheel artifacts.
+
+inputs:
+  packages-dir:
+    description: Directory containing distributions to build or publish
+    required: false
+    default: 'dist/'
+  package-subdir:
+    description: Subdirectory containing the Python package
+    required: false
+    default: '.'
+  python-version:
+    description: Python version to use for building distributions
+    required: false
+    default: '3.14'
+  build-wheel:
+    description: Whether to also build a wheel with python -m build --wheel
+    required: false
+    default: 'false'
+  download-wheels:
+    description: Whether to download prebuilt wheel artifacts
+    required: false
+    default: 'true'
+  wheel-artifact-pattern:
+    description: Artifact name pattern for downloading prebuilt wheels
+    required: false
+    default: 'cibw-wheels-*'
+  setup-cmd:
+    description: Optional bash command to run before building distributions
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Run optional distribution setup command
+      if: ${{ inputs.setup-cmd != '' }}
+      shell: bash
+      env:
+        SETUP_CMD: ${{ inputs.setup-cmd }}
+      run: |
+        eval "$SETUP_CMD"
+
+    - name: Install pypa/build
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip build
+
+    - name: Build distribution
+      shell: bash
+      env:
+        PACKAGES_DIR: ${{ inputs.packages-dir }}
+        PACKAGE_SUBDIR: ${{ inputs.package-subdir }}
+        BUILD_WHEEL: ${{ inputs.build-wheel }}
+      run: |
+        if [ "${BUILD_WHEEL}" = "true" ]; then
+          python -m build --sdist --wheel --outdir "${PACKAGES_DIR}" "${PACKAGE_SUBDIR}"
+        else
+          python -m build --sdist --outdir "${PACKAGES_DIR}" "${PACKAGE_SUBDIR}"
+        fi
+
+    - name: Download Wheels
+      if: ${{ inputs.download-wheels == 'true' }}
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+      with:
+        pattern: ${{ inputs.wheel-artifact-pattern }}
+        merge-multiple: true
+        path: ${{ inputs.packages-dir }}

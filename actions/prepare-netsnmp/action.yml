@@ -1,0 +1,53 @@
+---
+name: Prepare Net-SNMP for Linux and macOS
+description: Build minimal shared libnetsnmp from source with SHA256 verification on Linux or macOS.
+
+inputs:
+  net-snmp-version:
+    description: Net-SNMP version to build.
+    required: false
+    default: '5.10.rc1'
+  net-snmp-sha256:
+    description: Expected SHA256 hash for the Net-SNMP source archive.
+    required: false
+    default: '009cbda7879b1c75cee01df9f4eab2797df47c6c5f90b70aed3e51dce89d8e76'
+  prefix:
+    description: Installation prefix for Net-SNMP.
+    required: false
+    default: '/usr/local'
+  openssl-prefix:
+    description: Optional OpenSSL prefix on macOS (auto-detected when empty).
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Prepare Net-SNMP on Linux
+      if: ${{ runner.os == 'Linux' }}
+      shell: bash
+      env:
+        NETSNMP_VERSION: ${{ inputs.net-snmp-version }}
+        EXPECTED_SHA256: ${{ inputs.net-snmp-sha256 }}
+        PREFIX: ${{ inputs.prefix }}
+      run: |
+        if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then
+          sudo -E bash "${{ github.action_path }}/scripts/prepare_linux_netsnmp.sh"
+        else
+          bash "${{ github.action_path }}/scripts/prepare_linux_netsnmp.sh"
+        fi
+        echo "${PREFIX}/bin" >> "${GITHUB_PATH}"
+        echo "EZSNMP_NETSNMP_CONFIG=${PREFIX}/bin/net-snmp-config" >> "${GITHUB_ENV}"
+
+    - name: Prepare Net-SNMP on macOS
+      if: ${{ runner.os == 'macOS' }}
+      shell: bash
+      env:
+        NETSNMP_VERSION: ${{ inputs.net-snmp-version }}
+        EXPECTED_SHA256: ${{ inputs.net-snmp-sha256 }}
+        PREFIX: ${{ inputs.prefix }}
+        OPENSSL_PREFIX: ${{ inputs.openssl-prefix }}
+      run: |
+        bash "${{ github.action_path }}/scripts/prepare_macos_netsnmp.sh"
+        echo "${PREFIX}/bin" >> "${GITHUB_PATH}"
+        echo "EZSNMP_NETSNMP_CONFIG=${PREFIX}/bin/net-snmp-config" >> "${GITHUB_ENV}"
