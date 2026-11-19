@@ -1,0 +1,78 @@
+---
+name: repo-fleet-ops
+description: >-
+  Fleet-wide repository operations across carlkidcrypto repositories: cross-repo open PR/CI/Codecov/review-mail
+  audits, worktree-isolated PR main merge-ups, shared-workflows 40-char SHA propagation, README.rst strict +
+  badge SVG validation, and GitHub Release notes auditing/backfill.
+---
+
+# Repo Fleet Operations
+
+Standardized, non-destructive scripts for multi-repository maintenance across the `carlkidcrypto` ecosystem (`shared-workflows`, `ezsnmp`, `ezsnmp_data_logger`, `purpleair_api`, `purpleair_data_logger`, `purpleair-matterbridge`, `carlkidcrypto.github.io`, `os-specific-runner`).
+
+## Safety Invariants
+
+- **Never merge PRs** (`gh pr merge` is strictly reserved for `@carlkidcrypto`).
+- **Never mutate primary clones** (`<workspace_root>/<repo>` stays clean on `main`).
+- **Isolate all edits in worktrees** (`<workspace_root>/wt-<repo>-<task>`), and prune worktrees when finished.
+- **No personal paths** in committed files or scripts (use `$HOME`, `<workspace_root>`, or CLI flags).
+
+---
+
+## Bundled Scripts
+
+All scripts live in `scripts/` relative to this skill directory and support `--help` and `--json`.
+
+### 1. Audit Open PRs, CI, Codecov & Review Mail
+
+```bash
+python3 scripts/audit_open_prs.py
+python3 scripts/audit_open_prs.py --repo ezsnmp --failing-only
+```
+
+Queries `gh pr list`, `gh pr checks`, issue comments, and pull review comments across ecosystem repos:
+- Reports base/head branches, `mergeable` state, and CI `pass`/`fail`/`pending` counts.
+- Detects Codecov check/comment presence.
+- Counts unanswered review-mail root comments (comments with no `in_reply_to_id` reply).
+
+### 2. Worktree-Isolated PR Sync with `origin/main`
+
+```bash
+python3 scripts/sync_prs_with_main.py --dry-run
+python3 scripts/sync_prs_with_main.py --repo ezsnmp --pr 1475
+```
+
+For each open `-> main` PR whose `origin/<head>` is behind `origin/main`:
+- Creates a detached worktree at `<workspace_root>/wt-<repo>-sync-<pr>`.
+- Runs `git merge --no-edit origin/main` and pushes `HEAD:<headRefName>` (unless `--no-push` or `--dry-run`).
+- Aborts and reports conflicting files cleanly on merge conflict, then removes and prunes the worktree.
+
+### 3. Bump `carlkidcrypto/shared-workflows` 40-Char SHA
+
+```bash
+python3 scripts/bump_shared_workflows_sha.py --dry-run
+python3 scripts/bump_shared_workflows_sha.py --repo ezsnmp --apply --commit
+```
+
+- Resolves the 40-character SHA of `carlkidcrypto/shared-workflows` via `git rev-parse` (or `gh api` fallback).
+- Scans `.github/workflows/*.yml`, `.github/actions/*/action.yml`, and `.github/workflows/*.md` for `carlkidcrypto/shared-workflows...@<sha>`.
+- With `--apply`, creates `<workspace_root>/wt-<repo>-bump-sha` from `origin/main`, updates pins in place, and optionally commits (`--commit`).
+
+### 4. Validate `README.rst` & Badge SVG Health
+
+```bash
+python3 scripts/validate_readme_rst.py /path/to/README.rst
+```
+
+- Runs `rst2html --strict` on `README.rst` to catch reStructuredText syntax/link errors.
+- Fetches every `.. image::` / `.. figure::` URL and verifies HTTP `200` with no `not found`, `missing`, or `invalid` SVG error text.
+
+### 5. Audit & Backfill GitHub Release Notes
+
+```bash
+python3 scripts/audit_release_notes.py --repo ezsnmp
+python3 scripts/audit_release_notes.py --repo os-specific-runner --tag v2.2.0 --apply
+```
+
+- Audits releases via `gh api .../releases` for missing `auto_release_notes` sections (`Compared to:` / `**Full Changelog**:`, `## ` headers, or `(pypi.org/redacted)` links).
+- Runs in dry-run mode by default; pass `--apply` to backfill missing notes via `gh release edit`.
