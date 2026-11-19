@@ -82,6 +82,18 @@ Read only the specific reference file needed for the current task:
 
 ---
 
+## Quota-Resilient Checkpoint Convention (Multi-Repo Sweeps)
+
+When running multi-repository audits, PR sweeps, or CI updates across the `carlkidcrypto` ecosystem:
+1. Process repositories in a deterministic order and record per-repository state (`pending`, `in_progress`, `done`, `blocked`, plus PR URL / commit SHA) in a scratch checkpoint file (e.g., `sweep_checkpoint.json` in the conversation scratch directory).
+2. Update the checkpoint immediately after each repository completes so a quota limit or session restart never forces re-scanning already-completed repositories.
+3. On resume, read the checkpoint file first, skip `done` entries, and continue from the next `pending` or `in_progress` repository.
+
+---
+
 ## Bundled Scripts
 
 - `scripts/check_open_prs.py` — Scans open PRs, mergeability, base/head topology, and CI pass/fail/pending summaries across all `carlkidcrypto` repositories (`--repo`, `--failing-only`, `--json`).
+- `scripts/gh_pr_mail.py` — Performs 2-pass PR review/MAIL comment discovery (GraphQL `reviewThreads` + REST `pulls/N/comments` + `issues/N/comments`), posts threaded replies (`--reply-to COMMENT_ID --commit SHA --summary TEXT`), and verifies no unpushed commits remain (`--check-unpushed`).
+- `scripts/rerun_cancelled_jobs.py` — Finds workflow runs on a PR or run ID with cancelled/failed jobs (especially `runner_id == 0` infrastructure cancellations) and triggers `rerun-failed-jobs` (`--repo owner/repo`, `--pr N` | `--run-id ID`, `--dry-run`).
+- `scripts/lint_ci.sh` — Pre-PR CI validation script checking `HEAD != main` (unless `--allow-main`), verifying no helper scripts exist under `.github/script/` (must be `.github/scripts/`), and running `yamllint`, `actionlint -shellcheck=`, and `black --check`.

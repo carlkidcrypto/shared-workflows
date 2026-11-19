@@ -332,3 +332,12 @@ When requested to prepare a release:
       - Ensure `.nojekyll` is present for all GitHub Pages documentation deployments.
       - Enforce CalSemVer standards and automated PEP 440 prerelease regex translation (`aN` -> `-alpha.N`, `bN` -> `-beta.N`, `rcN` -> `-rc.N`) across all package manifests and distribution workflows.
       - **Zero-Tolerance Legacy Version Purge**: When a repository transitions to CalSemVer, conduct an exhaustive codebase audit to eliminate all legacy SemVer artifacts (e.g. `2.0.0`, `v2.0.0`, "New in v2.0") across announcements (`README.rst`), unit tests (`test_generate_release_notes.py`), documentation specifications (`software_requirements.rst`), and tooling. Retain legacy version strings only in immutable changelog history or external dependency manifests.
+
+---
+
+## Bundled Scripts
+
+- `scripts/wt_preflight.sh` — Automates safe Git worktree lifecycle management without modifying or deleting other agents' active worktrees:
+  - `check [--repo-dir PATH]`: Runs `git worktree list`, verifies the primary checkout is clean on `main`/`master`, and detects cloud-sync duplicate refs (`* (*` in `.git/refs`).
+  - `create <repo-dir> <branch> <task-name> [--existing]`: Fetches `origin`, creates `<workspace_root>/wt-<repo>-<task-name>` from `origin/main` (or checks out an existing branch with `--existing`), and prints the worktree path.
+  - `prune <repo-dir> <worktree-path>`: Safely removes and prunes the worktree and verifies `git worktree list`.

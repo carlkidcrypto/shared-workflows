@@ -450,3 +450,9 @@ Before handing off the pull request to the maintainer, verify every step in this
   3. Confirmation that SonarCloud reports **Rating A** and Quality Gate **OK**.
   4. Worktree cleanup confirmation (`git worktree remove` + `git worktree prune`).
 - [ ] **Stop here and let the maintainer merge the PR.**
+
+---
+
+## Bundled Scripts
+
+- `scripts/sonar_triage.py` — CLI (`--project KEY` or `--repo owner/repo`, `[--pr N]`, `[--branch NAME]`, `[--json]`) that queries SonarCloud APIs (`/api/qualitygates/project_status`, `/api/issues/search`, `/api/hotspots/search`, `/api/measures/component`, using `SONAR_TOKEN` from the environment if set) and prints a concise summary of Quality Gate status, bugs, vulnerabilities, code smells, security hotspots, duplication, and coverage.

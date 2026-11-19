@@ -4,10 +4,10 @@ Cross-IDE **Agent Plugins 1.0** bundle packaging `carlkidcrypto` ecosystem skill
 
 ## Included Skills
 
-- `ci-cd-workflow-optimization`
-- `release-management`
-- `sonarqube-quality-remediation`
-- `gemini-spark-blog`
+- `ci-cd-workflow-optimization` (includes `scripts/check_open_prs.py`, `scripts/gh_pr_mail.py`, `scripts/rerun_cancelled_jobs.py`, `scripts/lint_ci.sh`)
+- `release-management` (includes `scripts/wt_preflight.sh`)
+- `sonarqube-quality-remediation` (includes `scripts/sonar_triage.py`)
+- `gemini-spark-blog` (includes `scripts/sync_drive_post.py`, `scripts/validate_blog_code.py`, `scripts/rebase_stack.py`)
 
 ## Usage
 
