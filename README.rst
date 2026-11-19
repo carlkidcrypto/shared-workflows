@@ -55,8 +55,16 @@ Shared CI Scripts (``scripts/``)
 Shared ``gh-aw`` Fragments (``shared/``)
 ----------------------------------------
 
+- ``shared/auto-release-notes-core.md``: Core frontmatter and prompt instructions for ``auto_release_notes.md`` workflows.
 - ``shared/codecov-coverage.md``: Pre-fetches Codecov coverage summaries for agentic coverage workflows.
+- ``shared/copilot-defaults.md``: Default Copilot engine/model frontmatter and bounded 20 KB file-read rules.
+- ``shared/docs-continuous-improvement-core.md``: Core frontmatter and single-target scope rules for ``docs_continuous_improvement.md`` workflows.
 - ``shared/pr-preflight-checklist.md``: Pre-PR validation checklist covering branch/worktree isolation, ``.github/scripts/`` placement, ``yamllint``/``actionlint``/``black`` checks, unpushed-commit verification, and 2-pass PR review/MAIL comment replies.
+- ``shared/python-version-watcher-core.md``: Core frontmatter and ``devguide.python.org`` sync instructions for ``python_version_watcher.md`` workflows.
+- ``shared/safe-outputs-pr.md``: Standard permissions and ``create-pull-request`` / ``noop`` safe-outputs frontmatter for draft-PR workflows.
+- ``shared/supplemental-labels.md``: Standard PR and issue label taxonomy across ``carlkidcrypto`` repositories.
+- ``shared/sync-open-prs.md``: Shared frontmatter and single-PR-per-run merge instructions for ``sync_open_prs_with_main.md`` workflows.
+- ``shared/triage-bug-reports-core.md``: Core frontmatter and intake scoring rules for ``triage_incoming_bug_reports.md`` workflows.
 
 Agent Plugins (``plugins/``)
 ----------------------------
