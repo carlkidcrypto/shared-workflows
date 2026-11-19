@@ -318,3 +318,9 @@ Codecov's JavaScript Bundle Analysis tracks bundle size changes, asset breakdown
    ```
 
 ---
+
+## No-Cheat Verification & CI Triage
+
+- **Never Cheat on Failing Tests**: Fix the underlying bug or broken test properly. **NEVER** relax assertions, add `@pytest.mark.skip` / `GTEST_SKIP()`, weaken checks, or mock around real failures just to make CI green.
+- **Genuine Post-Edit Local Verification**: Always run the relevant local test suite (`pytest`, `ctest`, `meson test`, `npm test`, `go test`, `dotnet test`) and formatters (`black`, `prettier`, `clang-format`, `csharpier`) inside your worktree *after* your final edit and confirm all reported cases pass without skipped or relaxed assertions.
+- **Distinguish Infra Drops from Real Failures**: Before editing code for a failed CI run, inspect logs with `scripts/triage_ci_failures.py` (or `gh run view <run_id> --log-failed`). If a job failed with `conclusion == "cancelled"` and empty steps or `runner_id == 0`, treat it as a runner infra drop and rerun only failed jobs (`--rerun-infra-drops` / `gh api .../rerun-failed-jobs -X POST`) rather than touching tests.

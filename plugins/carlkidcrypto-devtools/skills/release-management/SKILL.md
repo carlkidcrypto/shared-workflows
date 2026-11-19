@@ -95,6 +95,7 @@ This skill defines the standard procedure for preparing software releases across
 When preparing a release or resolving repository security advisories:
 
 1. **Audit Open Alerts**:
+   Prefer the bundled `scripts/audit_dependabot_and_shas.py` script (`--repo`, `--all-repos`, `--check-workflows`, `--json`) to audit open Dependabot alerts and scan `.github/workflows/*.yml` for unpinned `uses:` references lacking 40-char commit SHAs. Raw `gh api` fallback:
    ```bash
    gh api 'repos/<owner>/<repo>/dependabot/alerts?state=open' --jq '.[] | {number: .number, dependency: .dependency.package.name, severity: .security_advisory.severity, summary: .security_advisory.summary}'
    ```
@@ -391,3 +392,4 @@ To install a local `ezsnmp_data_logger` worktree or repository non-editably into
   - `check [--repo-dir PATH]`: Runs `git worktree list`, verifies the primary checkout is clean on `main`/`master`, and detects cloud-sync duplicate refs (`* (*` in `.git/refs`).
   - `create <repo-dir> <branch> <task-name> [--existing]`: Fetches `origin`, creates `<workspace_root>/wt-<repo>-<task-name>` from `origin/main` (or checks out an existing branch with `--existing`), and prints the worktree path.
   - `prune <repo-dir> <worktree-path>`: Safely removes and prunes the worktree and verifies `git worktree list`.
+- `scripts/audit_dependabot_and_shas.py` — Lists open Dependabot alerts via `gh api` (gracefully handling 403/404 when Dependabot is disabled) and optionally scans `.github/workflows/*.yml` for unpinned `uses:` tags lacking 40-char commit SHAs (`--repo`, `--all-repos`, `--check-workflows`, `--json`).
