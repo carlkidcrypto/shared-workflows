@@ -18,6 +18,10 @@ inputs:
     description: Custom name for the upload
     required: false
     default: ''
+  report-type:
+    description: Optional Codecov report type (e.g. coverage or test_results)
+    required: false
+    default: ''
   fail-ci-if-error:
     description: Fail the CI job if Codecov upload encounters an error
     required: false
@@ -26,7 +30,8 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Upload to Codecov
+    - name: Upload to Codecov (default report type)
+      if: ${{ inputs.report-type == '' }}
       uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574  # v5.4.0
       env:
         CODECOV_TOKEN: ${{ inputs.token }}
@@ -35,4 +40,17 @@ runs:
         files: ${{ inputs.files }}
         flags: ${{ inputs.flags }}
         name: ${{ inputs.name }}
+        fail_ci_if_error: ${{ inputs.fail-ci-if-error }}
+
+    - name: Upload to Codecov (explicit report type)
+      if: ${{ inputs.report-type != '' }}
+      uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574  # v5.4.0
+      env:
+        CODECOV_TOKEN: ${{ inputs.token }}
+      with:
+        token: ${{ inputs.token }}
+        files: ${{ inputs.files }}
+        flags: ${{ inputs.flags }}
+        name: ${{ inputs.name }}
+        report_type: ${{ inputs.report-type }}
         fail_ci_if_error: ${{ inputs.fail-ci-if-error }}

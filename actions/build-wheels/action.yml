@@ -1,0 +1,169 @@
+---
+name: Build Wheels
+description: Build Python wheels across platforms using cibuildwheel and upload artifacts.
+
+inputs:
+  os:
+    description: Operating system for the wheel build runner
+    required: true
+  arch:
+    description: Target architecture (e.g. x86_64, arm64, AMD64, x86, ARM64)
+    required: true
+  job-index:
+    description: Matrix job index for unique artifact naming
+    required: true
+  cibw-build:
+    description: Optional CIBW_BUILD selector pattern (e.g. *-manylinux*, *-musllinux*)
+    required: false
+    default: '*'
+  label:
+    description: Optional matrix label for distinct cache keys (defaults to arch)
+    required: false
+    default: ''
+  python-version:
+    description: Python version to set up for running cibuildwheel
+    required: false
+    default: '3.14'
+  requirements-file:
+    description: Path to requirements file to install before running cibuildwheel
+    required: false
+    default: 'requirements.txt'
+  package-subdir:
+    description: Subdirectory containing the Python package
+    required: false
+    default: '.'
+  obj-cache-dir:
+    description: Optional object cache directory name under runner.temp (disabled when empty)
+    required: false
+    default: ''
+  obj-cache-hash:
+    description: Cache key hash suffix for the optional object cache
+    required: false
+    default: ''
+  prepare-windows-netsnmp:
+    description: Whether to run prepare-windows-netsnmp on Windows runners
+    required: false
+    default: 'false'
+  net-snmp-version:
+    description: Net-SNMP version for Windows wheel builds
+    required: false
+    default: '5.10.rc1'
+  net-snmp-sha256:
+    description: Expected SHA256 for Windows Net-SNMP archive
+    required: false
+    default: 'a81b239f877910af4959c16e6c71872bd10507404d00650b7cba28df9ce0bb20'
+  install-delvewheel:
+    description: Whether to install delvewheel on Windows runners
+    required: false
+    default: 'false'
+  macos-deployment-target-from-build-utils:
+    description: Whether to resolve MACOSX_DEPLOYMENT_TARGET via build_utils.py and update pyproject.toml
+    required: false
+    default: 'false'
+  artifact-prefix:
+    description: Prefix for uploaded wheel artifact names
+    required: false
+    default: 'cibw-wheels'
+
+runs:
+  using: composite
+  steps:
+    - name: Cache pip dependencies
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles(inputs.requirements-file) }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Cache cibuildwheel downloads and environments
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        path: ${{ runner.temp }}/cibw-cache
+        key: ${{ runner.os }}-cibw-cache-${{ inputs.label || inputs.arch }}-${{ hashFiles('pyproject.toml', inputs.requirements-file) }}
+        restore-keys: |
+          ${{ runner.os }}-cibw-cache-${{ inputs.label || inputs.arch }}-
+
+    - name: Cache Python-independent C++ objects
+      if: ${{ runner.os != 'Linux' && inputs.obj-cache-dir != '' }}
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        path: ${{ runner.temp }}/${{ inputs.obj-cache-dir }}
+        key: ${{ runner.os }}-obj-cache-${{ inputs.arch }}-${{ inputs.obj-cache-hash || hashFiles('pyproject.toml', 'setup.py') }}
+        restore-keys: |
+          ${{ runner.os }}-obj-cache-${{ inputs.arch }}-
+
+    - name: Cache vcpkg installed
+      if: ${{ runner.os == 'Windows' && inputs.prepare-windows-netsnmp == 'true' && (inputs.arch == 'x86' || inputs.arch == 'ARM64') }}
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        path: C:\vcpkg\installed
+        key: ${{ runner.os }}-vcpkg-openssl-${{ inputs.arch }}-v1
+
+    - name: Cache compiled Net-SNMP for Windows
+      if: ${{ runner.os == 'Windows' && inputs.prepare-windows-netsnmp == 'true' }}
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        path: C:\ezsnmp-netsnmp-dist
+        key: ${{ runner.os }}-netsnmp-${{ inputs.net-snmp-version }}-${{ inputs.arch }}-${{ inputs.net-snmp-sha256 }}
+
+    - name: Set up Python
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install cibuildwheel and build dependencies
+      shell: bash
+      env:
+        REQ_FILE: ${{ inputs.requirements-file }}
+        INSTALL_DELVEWHEEL: ${{ inputs.install-delvewheel }}
+        RUNNER_OS_NAME: ${{ runner.os }}
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f "${REQ_FILE}" ]; then
+          pip install -r "${REQ_FILE}"
+        else
+          pip install cibuildwheel
+        fi
+        if [ "${RUNNER_OS_NAME}" = "Windows" ] && [ "${INSTALL_DELVEWHEEL}" = "true" ]; then
+          pip install delvewheel
+        fi
+
+    - name: Prepare Net-SNMP for Windows wheels
+      if: ${{ runner.os == 'Windows' && inputs.prepare-windows-netsnmp == 'true' }}
+      uses: carlkidcrypto/shared-workflows/actions/prepare-windows-netsnmp@3178143deee5927b0b131bafef683efe8b2484b5
+      with:
+        net-snmp-version: ${{ inputs.net-snmp-version }}
+        net-snmp-sha256: ${{ inputs.net-snmp-sha256 }}
+        arch: ${{ inputs.arch }}
+
+    - name: Build wheels using cibuildwheel
+      uses: carlkidcrypto/os-specific-runner@8bf8551e08c48d9b72f768392e692fad5bb169e7  # v2.5.0
+      env:
+        CIBW_BUILD: ${{ inputs.cibw-build }}
+        CIBW_CACHE_PATH: ${{ runner.temp }}/cibw-cache
+        EZSNMP_OBJECT_CACHE_DIR: ${{ inputs.obj-cache-dir != '' && format('{0}/{1}', runner.temp, inputs.obj-cache-dir) || '' }}
+        PACKAGE_SUBDIR: ${{ inputs.package-subdir }}
+        USE_BUILD_UTILS_TARGET: ${{ inputs.macos-deployment-target-from-build-utils }}
+        TARGET_ARCH: ${{ inputs.arch }}
+      with:
+        linux: python -m cibuildwheel --output-dir wheelhouse --platform linux "${PACKAGE_SUBDIR}"
+        macos: |
+          if [ "${USE_BUILD_UTILS_TARGET}" = "true" ] && [ -f build_utils.py ]; then
+            MACOS_VERSION=$(sw_vers -productVersion)
+            MACOSX_DEPLOYMENT_TARGET=$(python -c "import build_utils; print(build_utils.resolve_macos_deployment_target('$MACOS_VERSION'))")
+            sed -i '' "s/\(MACOSX_DEPLOYMENT_TARGET = \"\)[^\"]*\"/\1${MACOSX_DEPLOYMENT_TARGET}\"/" pyproject.toml
+          else
+            MACOS_MAJOR=$(sw_vers -productVersion | cut -d. -f1)
+            export MACOSX_DEPLOYMENT_TARGET="${MACOS_MAJOR}.0"
+          fi
+          python -m cibuildwheel --output-dir wheelhouse --platform macos "${PACKAGE_SUBDIR}"
+        windows: |
+          python -m cibuildwheel --output-dir wheelhouse --platform windows --archs "$env:TARGET_ARCH" "$env:PACKAGE_SUBDIR"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    - name: Upload wheel artifacts
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+      with:
+        name: ${{ inputs.artifact-prefix }}-${{ inputs.os }}-${{ inputs.arch }}-${{ inputs.job-index }}
+        path: wheelhouse/*.whl
