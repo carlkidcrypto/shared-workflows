@@ -79,3 +79,9 @@ Read only the specific reference file needed for the current task:
 - [packaging-and-trusted-publishing.md](references/packaging-and-trusted-publishing.md) — `cibuildwheel`/`delvewheel`, npm & NuGet OIDC, C++17 ANSI, WinGet, `gh release upload`, desktop packaging, Homebrew 7.0.14+ local tap testing.
 - [coverage-and-testing.md](references/coverage-and-testing.md) — Multi-language Codecov globs, modular test architecture & flakiness prevention, PR coverage comments, JS bundle analysis.
 - [gh-aw-and-shared-workflows.md](references/gh-aw-and-shared-workflows.md) — `gh-aw v1.2.2` compilation/validation, script extraction, and `carlkidcrypto/shared-workflows` DRY standards.
+
+---
+
+## Bundled Scripts
+
+- `scripts/check_open_prs.py` — Scans open PRs, mergeability, base/head topology, and CI pass/fail/pending summaries across all `carlkidcrypto` repositories (`--repo`, `--failing-only`, `--json`).

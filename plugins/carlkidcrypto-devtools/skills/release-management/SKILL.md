@@ -254,7 +254,8 @@ When requested to prepare a release:
    - For multi-ecosystem repositories (Python, npm, NuGet, WinGet), execute and verify registry deployments one by one.
    - **Post-Release Versioned Documentation & Prerelease Pruning**: The automated `sphinx_docs_build_release` workflow builds versioned documentation into `docs/html_v<version>/`. When a new stable release (e.g. `2.5.0` or `2026.11.4`) is published, its documentation replaces and retires all prereleases (`alpha`, `beta`, `rc`) belonging to that version series (e.g., `html_v2.5.0a0`–`html_v2.5.0b0` are removed from `docs/` and from the landing page version selector). Prereleases remain in `docs/` only while no stable release has been published for that series. Versioned documentation directory names must always normalize to lowercase `html_v<version>`.
 
-9. **Multi-Ecosystem Registry Onboarding & Bootstrap Sequencing**:
+9. **Multi-Ecosystem Registry Onboarding & OIDC-First Publishing**:
+   - **Prefer OIDC Trusted Publishing Over Static Tokens by Default**: All publishing pipelines for **PyPI**, **TestPyPI**, **npm**, and **NuGet** must default to keyless OIDC Trusted Publishing (`permissions: id-token: write`, `contents: read`). For PyPI and TestPyPI (`reusable_pypi_publish.yml`), use OIDC exclusively without `PYPI_API_TOKEN` / `secrets.pypi-token` fallbacks. For npm and NuGet, rely on OIDC by default and avoid static API tokens after initial package bootstrap.
    - **PyPI vs npm Trusted Publishing Bootstrap**:
      - *PyPI*: Supports "Pending Publishers", allowing OIDC registration before the package exists.
      - *npm*: Requires unscoped packages to exist on npmjs.com before trusted publishers can be configured. The initial package release must be bootstrapped via `NPM_TOKEN` (or maintainer local CLI publish `npm publish --access public`).
