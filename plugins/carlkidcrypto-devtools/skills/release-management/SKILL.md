@@ -332,3 +332,53 @@ When requested to prepare a release:
       - Ensure `.nojekyll` is present for all GitHub Pages documentation deployments.
       - Enforce CalSemVer standards and automated PEP 440 prerelease regex translation (`aN` -> `-alpha.N`, `bN` -> `-beta.N`, `rcN` -> `-rc.N`) across all package manifests and distribution workflows.
       - **Zero-Tolerance Legacy Version Purge**: When a repository transitions to CalSemVer, conduct an exhaustive codebase audit to eliminate all legacy SemVer artifacts (e.g. `2.0.0`, `v2.0.0`, "New in v2.0") across announcements (`README.rst`), unit tests (`test_generate_release_notes.py`), documentation specifications (`software_requirements.rst`), and tooling. Retain legacy version strings only in immutable changelog history or external dependency manifests.
+
+---
+
+## GitHub Immutable Releases Pattern
+
+When GitHub Immutable Releases are enabled on a repository, assets **cannot** be uploaded or modified once a release is published:
+
+1. **Workflow Trigger & Draft Upload**:
+   - Trigger release asset workflows on `release: types: [created, published]`.
+   - Upload binaries/installers while `github.event.release.draft == true` (on `created`), before the release is published and locked.
+2. **Immutable Guard on `published`**:
+   - Before attempting `gh release upload` or asset mutation on a published release, query the release's immutability state via GitHub API:
+     ```bash
+     is_immutable="$(gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" --jq '.immutable // false')"
+     ```
+   - Skip asset uploads cleanly with a diagnostic notice when `is_immutable == "true"` (and `draft == "false"`), preventing `422 Unprocessable Entity` / immutable release errors on re-runs or `published` events.
+
+---
+
+## Upstream Dependency Bump Checklist
+
+When bumping an upstream core dependency (e.g., `ezsnmp` beta/stable bumps in `ezsnmp_data_logger`), audit and update all touchpoints in one isolated worktree (`<workspace_root>/wt-<repo>-<task>`):
+
+1. **Package & Build Manifests**: `pyproject.toml`, `setup.cfg`, `CMakeLists.txt`, `uv.lock` / `requirements*.txt`, and `package.json` / `*.csproj` if applicable.
+2. **C++ Source & ABI Guarantees**: Update embedded version/dependency constants (e.g., `src/version.cpp` ensuring `noexcept` signatures remain intact).
+3. **Test Suites**: Update version/dependency assertions in both C++ tests (GoogleTest) and Python tests (`pytest`).
+4. **CI Workflows & Helper Scripts**: Sync pinned dependency versions in `.github/workflows/*.yml`, `cibuildwheel` `before-all` steps, and `tools/prepare_*` provisioning scripts.
+5. **Requirements & Docs**: Update `sphinx_docs_build/source/software_requirements.rst` (<= 80 chars/line) and rebuild Sphinx docs with `-W`.
+
+---
+
+## Same-Day CalSemVer & Release Notes Backfill
+
+- **Same-Day `.1` Suffix**: If a same-day hotfix release is required after `YYYY.M.D` is already tagged, use `YYYY.M.D.1` (e.g., `2026.11.19.1`) across `release_tools/bump_version.sh` and manifests.
+- **Release Notes Backfill**: When prior tags lack generated release notes or require synchronized notes across releases, run:
+  ```bash
+  python3 tools/generate_release_notes.py --backfill --publish
+  ```
+
+---
+
+## Local Desktop App Update
+
+To install a local `ezsnmp_data_logger` worktree or repository non-editably into macOS Framework Python 3.13, clean build artifacts, and run `version --json` + `ezsnmp_data_logger.gui` import smoke tests, run:
+
+```bash
+./scripts/update_local_desktop.sh \
+  --source-dir <workspace_root>/wt-ezsnmp_data_logger-<task> \
+  [--ezsnmp-spec <pip-spec-or-wheel>]
+```
