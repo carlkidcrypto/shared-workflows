@@ -105,6 +105,7 @@ When running multi-repository audits, PR sweeps, or CI updates across the `carlk
 - `scripts/merge_up_prs.py` — Lists open PRs targeting `main` (skipping stacked PRs unless `--include-stacked` is passed), runs `gh pr update-branch`, and reports updated vs conflicted PRs (`--repo`, `--pr`, `--all-repos`, `--include-stacked`, `--dry-run`, `--json`).
 - `scripts/worktree_hygiene.py` — Scans git repositories under `<workspace_root>/`, verifies primary checkouts are clean on `main`/default branch, lists `git worktree list` entries, flags stale `wt-*` worktrees, and detects/optionally cleans `.git/refs` cloud-sync duplicates (`--root`, `--prune-merged`, `--clean-cloud-refs`, `--dry-run`, `--json`).
 - `scripts/validate_workflows.py` — Discovers `.github/workflows/*.yml` and `.md` agentic workflows (or specified files), runs `yamllint` and `actionlint` if installed, and optionally runs `gh aw compile --validate` (`--repo-dir`, `--files`, `--compile-gh-aw`, `--json`).
+- `scripts/manage_dependabot.py` — Detects active repository ecosystems (`github-actions`, `pip`, `npm`, `nuget`, `gomod`) and generates or validates `.github/dependabot.yml` with weekly schedules and `chore(deps)` commit prefixes (`--repo-root`, `--generate`, `--validate`, `--output`).
 
 ---
 

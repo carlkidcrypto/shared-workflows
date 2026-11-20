@@ -18,12 +18,15 @@ Cross-IDE **Agent Plugins 1.0** bundle packaging `carlkidcrypto` ecosystem skill
 - `skills/ci-cd-workflow-optimization/scripts/gh_pr_mail.py` — Performs 2-pass PR review/MAIL comment discovery, posts formatted `in_reply_to` replies (`Addressed in commit \`<sha>\`: <summary>`), and checks for unpushed commits.
 - `skills/ci-cd-workflow-optimization/scripts/rerun_cancelled_jobs.py` — Reruns cancelled/failed jobs (especially `runner_id == 0` infra cancellations) via `gh api`.
 - `skills/ci-cd-workflow-optimization/scripts/lint_ci.sh` — Pre-PR check verifying `HEAD != main`, `.github/scripts/` placement, `yamllint`, `actionlint`, and `black --check`.
+- `skills/ci-cd-workflow-optimization/scripts/manage_dependabot.py` — Multi-ecosystem `.github/dependabot.yml` generator and validator (`github-actions`, `pip`, `npm`, `nuget`, `gomod`).
 - `skills/local-validation-and-dev/scripts/env_preflight.sh` — Probes and exports local toolchain environment variables (Framework Python 3.13, Homebrew `net-snmp` / `openssl@3`, `PKG_CONFIG_PATH`, `DYLD_LIBRARY_PATH`).
 - `skills/local-validation-and-dev/scripts/validate_local.py` — Auto-detects repo capabilities and runs local Python, C++, Sphinx/Doxygen docs, and workflow syntax validation with artifact cleanup.
 - `skills/release-management/scripts/wt_preflight.sh` — Safe Git worktree lifecycle helper (`check`, `create`, `prune`, cloud-sync ref diagnostics).
+- `skills/release-management/scripts/calsemver_release_helper.py` — Shared CalSemVer PEP 440 / SemVer 2.0.0 normalizer and Sphinx virtualenv (`python3.14.venv`, `python3.13.venv`, `.venv`) discovery helper.
 - `skills/release-management/scripts/update_local_desktop.sh` — Non-editably installs desktop apps into Framework Python 3.13, cleans build artifacts, and runs import/CLI smoke tests.
 - `skills/sonarqube-quality-remediation/scripts/sonar_triage.py` — SonarCloud Quality Gate, issue, hotspot, and coverage/duplication CLI.
-- `skills/gemini-spark-blog/scripts/` — Blog workflow helpers (`sync_drive_post.py`, `validate_blog_code.py`, `rebase_stack.py`).
+- `skills/gemini-spark-blog/scripts/` — Blog workflow helpers (`sync_drive_post.py`, canonical 1887-line `validate_blog_code.py`, `rebase_stack.py`).
+- `agents/the_scribe.md` & `skills/local-validation-and-dev/references/repo-skills-and-personas.md` — Canonical `The Scribe` documentation agent persona and consolidated `pull-request-guide`, `sphinx-docs`, `python-testing`, and `cpp-testing` standards.
 
 ## Usage
 
