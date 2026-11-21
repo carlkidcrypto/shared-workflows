@@ -2,7 +2,7 @@
 set -euo pipefail
 
 DEFAULT_PYTHON="/Library/Frameworks/Python.framework/Versions/3.13/bin/python3"
-PYTHON_BIN="${DEFAULT_PYTHON}"
+PYTHON_BIN=""
 SOURCE_DIR=""
 EZSNMP_SPEC=""
 
@@ -67,6 +67,18 @@ SOURCE_DIR="$(cd "${SOURCE_DIR}" && pwd)"
 if [[ ! -f "${SOURCE_DIR}/pyproject.toml" && ! -f "${SOURCE_DIR}/setup.py" && ! -f "${SOURCE_DIR}/setup.cfg" ]]; then
     echo "Error: --source-dir does not appear to be a Python package root: ${SOURCE_DIR}" >&2
     exit 1
+fi
+
+if [[ -z "${PYTHON_BIN}" ]]; then
+    if [[ -x "${DEFAULT_PYTHON}" ]]; then
+        PYTHON_BIN="${DEFAULT_PYTHON}"
+    elif [[ -x "${HOME}/Github/ezsnmp/python3.12.venv/bin/python3" ]]; then
+        PYTHON_BIN="${HOME}/Github/ezsnmp/python3.12.venv/bin/python3"
+    elif command -v python3 >/dev/null 2>&1; then
+        PYTHON_BIN="$(command -v python3)"
+    else
+        PYTHON_BIN="${DEFAULT_PYTHON}"
+    fi
 fi
 
 if [[ ! -x "${PYTHON_BIN}" ]]; then

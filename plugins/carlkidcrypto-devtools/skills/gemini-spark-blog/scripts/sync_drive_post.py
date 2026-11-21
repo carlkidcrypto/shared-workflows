@@ -65,6 +65,14 @@ def find_google_drive_blog_dir() -> Path | None:
     if home_drive.exists():
         return home_drive
 
+    # 5. Windows / WSL Google Drive mounts
+    for candidate in (
+        Path("/mnt/g/My Drive/Auto Blog Posts"),
+        Path(r"G:\My Drive\Auto Blog Posts"),
+    ):
+        if candidate.exists():
+            return candidate
+
     return None
 
 

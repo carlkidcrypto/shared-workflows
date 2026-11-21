@@ -31,6 +31,7 @@ EXTERNAL_SPEC_EXCLUSIONS: tuple[str, ...] = (
 SPHINX_VENV_CANDIDATES: tuple[str, ...] = (
     "python3.14.venv",
     "python3.13.venv",
+    "python3.12.venv",
     ".venv",
 )
 
@@ -106,8 +107,10 @@ def today_calsemver(
 def discover_sphinx_venv(repo_root: Path | None = None) -> Path | None:
     """Discover the preferred local Sphinx virtualenv directory."""
     root = (repo_root or Path.cwd()).resolve()
-    for name in SPHINX_VENV_CANDIDATES:
-        candidate = root / name
+    candidates = [root / name for name in SPHINX_VENV_CANDIDATES]
+    shared_wsl_venv = Path.home() / "Github" / "ezsnmp" / "python3.12.venv"
+    candidates.append(shared_wsl_venv)
+    for candidate in candidates:
         if (candidate / "bin" / "sphinx-build").is_file() or (
             candidate / "bin" / "python"
         ).is_file():
