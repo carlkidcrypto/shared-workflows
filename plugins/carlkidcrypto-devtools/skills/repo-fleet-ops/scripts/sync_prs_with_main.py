@@ -34,7 +34,13 @@ def default_workspace_root() -> Path:
     env_root = os.environ.get("WORKSPACE_ROOT")
     if env_root:
         return Path(env_root).expanduser()
-    return Path.home() / "Documents" / "GitHub"
+    macos_default = Path.home() / "Documents" / "GitHub"
+    if macos_default.is_dir():
+        return macos_default
+    wsl_default = Path.home() / "Github"
+    if wsl_default.is_dir():
+        return wsl_default
+    return macos_default
 
 
 def find_gh() -> str:

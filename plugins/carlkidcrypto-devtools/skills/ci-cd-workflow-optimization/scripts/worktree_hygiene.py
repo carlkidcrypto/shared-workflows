@@ -11,9 +11,12 @@ from typing import Any, Dict, List, Optional, Set
 
 def default_workspace_root() -> Path:
     """Return the default GitHub workspace root if present, else cwd."""
-    candidate = Path.home() / "Documents" / "GitHub"
-    if candidate.is_dir():
-        return candidate
+    for candidate in (
+        Path.home() / "Documents" / "GitHub",
+        Path.home() / "Github",
+    ):
+        if candidate.is_dir():
+            return candidate
     return Path.cwd()
 
 

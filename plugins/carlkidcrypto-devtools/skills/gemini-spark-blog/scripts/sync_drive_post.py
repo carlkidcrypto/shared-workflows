@@ -65,6 +65,14 @@ def find_google_drive_blog_dir() -> Path | None:
     if home_drive.exists():
         return home_drive
 
+    # 5. Windows / WSL Google Drive mounts
+    for candidate in (
+        Path("/mnt/g/My Drive/Auto Blog Posts"),
+        Path(r"G:\My Drive\Auto Blog Posts"),
+    ):
+        if candidate.exists():
+            return candidate
+
     return None
 
 
@@ -122,11 +130,18 @@ def parse_draft(draft_path: Path) -> dict:
         if len(line_s) >= 4 and set(line_s) == {"="}:
             title_lines = []
             j = i + 1
-            while j < len(lines) and not (len(lines[j].strip()) >= 4 and set(lines[j].strip()) == {"="}):
+            while j < len(lines) and not (
+                len(lines[j].strip()) >= 4 and set(lines[j].strip()) == {"="}
+            ):
                 if lines[j].strip():
                     title_lines.append(lines[j].strip())
                 j += 1
-            if title_lines and j < len(lines) and len(lines[j].strip()) >= 4 and set(lines[j].strip()) == {"="}:
+            if (
+                title_lines
+                and j < len(lines)
+                and len(lines[j].strip()) >= 4
+                and set(lines[j].strip()) == {"="}
+            ):
                 title = " ".join(title_lines)
                 break
         elif (
@@ -411,12 +426,18 @@ def register_in_index(
             cat_pattern = r"(\.\. toctree::\s*\n(?:\s*:[a-zA-Z0-9_\-]+:[^\n]*\n)*)"
             m = re.search(cat_pattern, cat_content)
             if m:
-                cat_content = cat_content[: m.end()] + f"\n   {slug}\n" + cat_content[m.end() :]
+                cat_content = (
+                    cat_content[: m.end()] + f"\n   {slug}\n" + cat_content[m.end() :]
+                )
             else:
-                print(f"Warning: Could not locate .. toctree:: block in {cat_file.name}")
+                print(
+                    f"Warning: Could not locate .. toctree:: block in {cat_file.name}"
+                )
 
             # Add card to category grid
-            if not re.search(rf":link:\s*{re.escape(slug)}\s*$", cat_content, re.MULTILINE):
+            if not re.search(
+                rf":link:\s*{re.escape(slug)}\s*$", cat_content, re.MULTILINE
+            ):
                 c_grid_pattern = r"(\.\. grid:: 1\s*\n\s*:gutter: \d+\s*\n\n)"
                 c_grid_match = re.search(c_grid_pattern, cat_content)
                 if c_grid_match:
@@ -429,7 +450,9 @@ def register_in_index(
 
     # 2. Add grid card to index.rst under All Posts
     if not re.search(rf":link:\s*{re.escape(slug)}\s*$", content, re.MULTILINE):
-        grid_pattern = r"(All Posts\s*\n-+\s*\n\n\.\. grid:: 1\s*\n\s*:gutter: \d+\s*\n\n)"
+        grid_pattern = (
+            r"(All Posts\s*\n-+\s*\n\n\.\. grid:: 1\s*\n\s*:gutter: \d+\s*\n\n)"
+        )
         grid_match = re.search(grid_pattern, content)
         if grid_match:
             content = (
@@ -440,7 +463,9 @@ def register_in_index(
             grid_match2 = re.search(grid_fallback, content)
             if grid_match2:
                 content = (
-                    content[: grid_match2.end()] + card_snippet + content[grid_match2.end() :]
+                    content[: grid_match2.end()]
+                    + card_snippet
+                    + content[grid_match2.end() :]
                 )
             else:
                 print("Warning: Could not locate .. grid:: block in index.rst")
