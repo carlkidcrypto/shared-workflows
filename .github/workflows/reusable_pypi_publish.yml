@@ -1,4 +1,10 @@
 ---
+# NOTE (pypa/gh-action-pypi-publish#166): PyPI/TestPyPI OIDC Trusted Publishing
+# requires the publish job to live in the caller workflow (otherwise
+# job_workflow_ref resolves to this reusable workflow). For OIDC publishing,
+# pass `skip-publish: true`, gate the caller's publish job on
+# `outputs.artifacts-built == 'true'`, and download `cibw-wheels-*` + `sdist`
+# in the caller workflow.
 name: Reusable PyPI Publish
 
 on:
@@ -95,6 +101,15 @@ on:
         required: false
         type: number
         default: 7
+      skip-publish:
+        description: Skip the publish job so callers using OIDC Trusted Publishing can publish locally
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      artifacts-built:
+        description: "'true' when distribution artifacts were built and uploaded"
+        value: ${{ jobs.build-sdist.outputs.artifacts-built }}
 
 permissions:
   contents: read
@@ -199,6 +214,8 @@ jobs:
       github.event_name == 'workflow_dispatch' || github.event_name == 'release') }}
     name: Build distribution
     runs-on: ubuntu-latest
+    outputs:
+      artifacts-built: ${{ steps.mark-built.outputs.artifacts-built }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -243,10 +260,16 @@ jobs:
           path: dist/*
           retention-days: ${{ inputs.artifact-retention-days }}
 
+      - name: Mark artifacts as built
+        id: mark-built
+        shell: bash
+        run: echo "artifacts-built=true" >> "$GITHUB_OUTPUT"
+
   publish:
     needs: [build-wheels, build-sdist]
     if: >-
       ${{ always() &&
+      inputs.skip-publish != true &&
       needs.build-sdist.result == 'success' &&
       (needs.build-wheels.result == 'success' || needs.build-wheels.result == 'skipped') }}
     name: Publish distribution to ${{ inputs.target == 'testpypi' && 'TestPyPI' || 'PyPI' }}
