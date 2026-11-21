@@ -54,6 +54,7 @@ jobs:
 
 ### Path Filter Principles
 - **Targeted Paths**: Only include paths relevant to the workflow's scope (e.g. `bindings/javascript/**` for npm tests, `sphinx_docs_build/**` for doc builds).
+- **Avoid Restrictive `paths:` on General Test Workflows**: For repo-wide test workflows (`tests.yml`), prefer `paths-ignore:` targeting pure documentation (`**/*.md`, `**/*.rst`, `docs/**`, `sphinx_docs_build/**`, `.github/aw/**`) rather than restrictive `paths:` whitelists that accidentally skip dependency manifests (`docker/requirements.txt`, `docker/package.json`), configs, or scripts.
 - **Include Workflow File Itself**: Always list the workflow file itself in `files:` (e.g. `.github/workflows/tests_python.yml`) so changes to CI configuration trigger validation.
 - **Workflow Dispatch Override**: Always include `|| github.event_name == 'workflow_dispatch'` so manual pipeline runs always execute.
 
@@ -310,6 +311,8 @@ sonar.cpd.exclusions=python_tests/**,cpp_tests/**,tests/**,configs/**,bindings/*
 
 2. Exclude SWIG generated wrapper artifacts from analysis so generated C++ or Python files do not dilute repository quality metrics.
 3. Exclude test suites and mock configurations from CPD duplication checks.
+4. **Automatic Analysis Default-Branch Requirement**: SonarQube Cloud Automatic Analysis strictly reads `.sonarcloud.properties` from the default branch (`main`) and **completely ignores** `sonar-project.properties`. If a PR fails the Quality Gate due to generated docs duplication (>3%), security hotspots, or reliability issues (`_build/**,docs/**` for `carlkidcrypto.github.io`, `docs/**` elsewhere), ensure `.sonarcloud.properties` exists on `main`, then rebase or merge `main` into the PR branch to trigger a clean re-analysis.
+5. **CodeQL Default Setup vs. Custom Workflows**: Repositories using GitHub Default Setup for CodeQL reject custom SARIF uploads with `CodeQL analyses from advanced configurations cannot be processed when the default setup is enabled`. Never add custom CodeQL workflows (`quality_codeql.yml`) to repositories configured with Default Setup.
 
 ---
 
@@ -475,5 +478,11 @@ jobs:
    In Python 3.8+ on Windows, `PATH` is ignored by `LoadLibraryEx` during extension import. Use SWIG's `%pythonbegin %{ ... %}` directive in `.i` interface files to register package directories and dependency directories via `os.add_dll_directory` at the top of the generated wrapper module. This guarantees that dependent DLLs (`netsnmp.dll`, `libcrypto.dll`) resolve cleanly on Windows without introducing executable logic or AST violations (`[GEN-05]`) into `__init__.py`.
 10. **Windows Universal CRT (ucrtbase) Stream Flushing**:
     On modern Windows runners (Python 3.8-3.13), standard C/C++ I/O streams are managed by `ucrtbase.dll`, not legacy `msvcrt.dll`. Calling `ctypes.cdll.msvcrt.fflush(None)` fails to flush standard output captured by pytest fixtures (`capfd`). Tests capturing C++ standard streams on Windows must flush `ucrtbase` via `ctypes.CDLL("ucrtbase").fflush(None)`.
+11. **Windows Runner PowerShell vs. Bash Path Mangling (`${{ github.workspace }}`)**:
+    On Windows runners, `${{ github.workspace }}` expands with Windows backslashes (e.g. `D:\a\repo\repo`). Passing it inside a step with `shell: bash` causes bash to interpret backslashes as escape sequences (`\a` -> ASCII BEL `\x07`, `\p` -> `p`), silently corrupting compiler include paths and MSBuild properties (`-p:GeneratedSourcesDir`). Separate Windows test steps (`if: runner.os == 'Windows'`) using the default Windows PowerShell (`pwsh`) runner without `shell: bash`, and use forward slashes or double backslashes when passing paths to CLI tools.
+12. **macOS Package Manager Version Detection, SDK Header Fallback & MacPorts Caching**:
+    - **Multi-Segment Versions**: MacPorts versions often contain 4+ dot-separated numeric segments (e.g. `net-snmp @5.9.5.2_0+perl5_34+ssl`). Use `\d+(?:\.\d+)*` rather than fixed 3-part regexes (`\d+\.\d+\.\d+`).
+    - **Prevent Apple SDK 5.6 Header Fallback**: If `/opt/local/include` (MacPorts) or `/opt/homebrew/include` (Homebrew) is missing from compiler include paths, clang++ silently falls back to Apple SDK Net-SNMP 5.6 headers under `/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/net-snmp`, causing misleading undeclared identifier errors (e.g. `netsnmp_cleanup_session`). Always add the active package manager's include and lib paths to `incdirs` and `libdirs`.
+    - **MacPorts Cache & Timeout**: Cold `port -N install net-snmp openssl3` runs take ~20–25 minutes; set `timeout-minutes: 45`. Never partition `/opt/local/var/macports/software` and `distfiles` caches by `${{ matrix.python-version }}` so subsequent Python matrix jobs reuse compiled C archives (~5 min instead of ~25 min).
 
 ---

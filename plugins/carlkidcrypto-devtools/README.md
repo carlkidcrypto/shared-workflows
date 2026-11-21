@@ -4,12 +4,13 @@ Cross-IDE **Agent Plugins 1.0** bundle packaging `carlkidcrypto` ecosystem skill
 
 ## Included Skills
 
-- `ci-cd-workflow-optimization`
-- `release-management`
-- `sonarqube-quality-remediation`
-- `gemini-spark-blog`
-- `repo-fleet-ops`
-- `local-validation-and-dev`
+- `agentic-workflows` — GitHub Agentic Workflows (`gh-aw`) prompt routing, compilation, network allowlisting (`api.github.com`), AWF Squid proxy diagnostics, `skip-if-match`, `min-integrity: none`, `--allow-all-tools`, and inline skill protection.
+- `ci-cd-workflow-optimization` — GitHub Actions CI/CD patterns, smart change detection, multi-OS Meson/SWIG/Windows/MacPorts build standards, Codecov/Valgrind reporting, and OIDC Trusted Publishing.
+- `release-management` — CalSemVer release bumps, `release_tools/`, worktree preflight, and desktop packaging.
+- `sonarqube-quality-remediation` — SonarQube Cloud Automatic Analysis triage and remediation.
+- `gemini-spark-blog` — End-to-end Google Drive / Gemini Spark blog ingestion, technical accuracy auditing, Sphinx/Furo builds, and stacked PR rebasing.
+- `repo-fleet-ops` — Fleet-wide PR/CI/release audits, `shared-workflows` SHA propagation, cross-repo config synchronization, and workspace status/test dispatch.
+- `local-validation-and-dev` — Local macOS/Linux/WSL2 toolchain preflight, worktree isolation, multi-language linting/testing, and consolidated repository personas (`The Scribe`).
 
 ## Helper Scripts
 
@@ -31,7 +32,16 @@ Cross-IDE **Agent Plugins 1.0** bundle packaging `carlkidcrypto` ecosystem skill
 ## Usage
 
 ### Antigravity
-Installed at `~/.gemini/config/plugins/carlkidcrypto-devtools/`.
+Installed at `~/.gemini/config/plugins/carlkidcrypto-devtools/` (or `C:\Users\<user>\.gemini\config\plugins\carlkidcrypto-devtools\` on Windows).
+
+### Windows 11 + WSL2 (`Ubuntu-24.04`) Support
+- All Python helper scripts include cross-platform Windows/WSL2 path discovery (`WORKSPACE_ROOT` / `GOOGLE_DRIVE_BLOG_DIR` overrides with automatic `~/Github`, `/mnt/g/My Drive/Auto Blog Posts`, and `G:\My Drive\Auto Blog Posts` fallbacks).
+- Run POSIX shell scripts (`env_preflight.sh`, `lint_ci.sh`, `wt_preflight.sh`, `update_local_desktop.sh`) and `validate_local.py` inside WSL2 (`Ubuntu-24.04`).
+- Pass `--python <venv-python>` to `update_local_desktop.sh` when not on macOS Framework Python.
+- Refresh the Windows global plugin mirror from WSL2 without copying bytecode caches:
+  ```powershell
+  robocopy "\\wsl.localhost\Ubuntu-24.04\home\<user>\Github\shared-workflows\plugins\carlkidcrypto-devtools" "$env:USERPROFILE\.gemini\config\plugins\carlkidcrypto-devtools" /MIR /XD __pycache__ .pytest_cache /XF *.pyc *.pyo
+  ```
 
 ### VS Code (GitHub Copilot)
 Add the local plugin path to VS Code `settings.json`:

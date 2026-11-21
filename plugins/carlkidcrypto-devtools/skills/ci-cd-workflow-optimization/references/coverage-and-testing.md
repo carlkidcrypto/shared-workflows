@@ -20,9 +20,14 @@
 3. **JavaScript / Node.js Coverage (`jest.config.js`)**:
    - Explicitly configure `collectCoverageFrom: ["index.js", "src/**/*.js"]` and include `"cobertura"` in `coverageReporters`.
    - Remove dead fallback branches in SWIG wrapper glue code and supply unit tests for constructor variants (default zero-argument vs pre-constructed native instances) to maintain 100% statement, branch, and line coverage.
-4. **Component Management Boundaries**:
+4. **Component Management Boundaries & Feature Flag Carryforward**:
    - Machine-generated SWIG code in build directories is git-ignored and untracked by Codecov.
    - Only define components in `component_management` for active, hand-authored repository source code (`python_code`, `javascript_code`, `go_code`) to avoid permanent empty (`∅`) component reports.
+   - Configure distinct feature flags (`python`, `javascript`, `csharp`, `go`, `java`, `cpp`) with `carryforward: true` in `codecov.yml` to prevent cross-language coverage drops when a PR only runs a subset of language matrices.
+5. **Python Coverage with Subdirectory Tests (`tests/.coveragerc`)**:
+   - When running tests from a subdirectory (`cd tests && coverage run -m unittest`) against a package installed into `site-packages`, `coverage` defaults to tracing the current directory, triggering `CoverageWarning: No data was collected` and exit code 1 on `coverage json`. Always declare `source = <package_name>` under `[run]` in `tests/.coveragerc` (or `python/tests/.coveragerc` in multi-language repos).
+6. **Multi-Language Test Suite Isolation**:
+   - In multi-language repositories with SWIG or native bindings, scope each language's tests strictly under `<language>/tests/` (`python/tests/`, `javascript/tests/`, `csharp/tests/`, `go/tests/`, `java/tests/`) and keep Python test configs (`.coveragerc`, `requirements.txt`) inside `python/tests/`.
 
 5. **Codecov Action SHA Pinning & Step Token Authentication**:
    - Pin `codecov/codecov-action` to its immutable commit hash `codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574` (# v5.4.0) across all workflows to satisfy SonarCloud security rule S7637.
@@ -111,6 +116,14 @@ When restructuring, renaming, or deleting C++ test files in Meson:
   rm -rf build-cov/cpp_tests/test_old_target.p
   ninja -C build-cov coverage-text
   ```
+
+### 5. Shared Daemon State Isolation in C/C++ Test Suites
+- Tests executing mutating commands against a shared local daemon (such as SNMP SET on `sysLocation.0`) must always restore the modified state back to the original value both within the test itself AND in `TearDown()` (wrapped in `try/catch`).
+- When running test suites against a single shared local daemon via Meson in Docker or CI, invoke `meson test --num-processes 1` to prevent parallel test binaries from mutating daemon state concurrently and causing intermittent race-condition failures.
+
+### 6. Valgrind Memory Leak Reporting & `$GITHUB_OUTPUT` Sanitization
+- For Valgrind memory leak workflows, parse the last 5 lines into stripped logs and render them into collapsible markdown tables (`comment-valgrind-template.md`).
+- When exporting stripped logs to `$GITHUB_OUTPUT`, sanitize newlines into spaces (`tr '\r\n' ' '` or unquoted `echo KEY=$temp >> $GITHUB_OUTPUT`) to avoid multiline delimiter parsing failures (`Value cannot be null. (Parameter 'name')`).
 
 ---
 
