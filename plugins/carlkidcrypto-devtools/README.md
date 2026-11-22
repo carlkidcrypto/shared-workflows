@@ -35,7 +35,7 @@ Cross-IDE **Agent Plugins 1.0** bundle packaging `carlkidcrypto` ecosystem skill
 Installed at `~/.gemini/config/plugins/carlkidcrypto-devtools/` (or `C:\Users\<user>\.gemini\config\plugins\carlkidcrypto-devtools\` on Windows).
 
 ### Windows 11 + WSL2 (`Ubuntu-24.04`) Support
-- All Python helper scripts include cross-platform Windows/WSL2 path discovery (`WORKSPACE_ROOT` / `GOOGLE_DRIVE_BLOG_DIR` overrides with automatic `~/Github`, `/mnt/g/My Drive/Auto Blog Posts`, and `G:\My Drive\Auto Blog Posts` fallbacks).
+- All Python helper scripts include cross-platform Windows/WSL2 path discovery (`WORKSPACE_ROOT` / `GOOGLE_DRIVE_BLOG_DIR` overrides with automatic `~/Github` and Windows/WSL2 Google Drive mount fallbacks, defaulting to `G:`).
 - Run POSIX shell scripts (`env_preflight.sh`, `lint_ci.sh`, `wt_preflight.sh`, `update_local_desktop.sh`) and `validate_local.py` inside WSL2 (`Ubuntu-24.04`).
 - Pass `--python <venv-python>` to `update_local_desktop.sh` when not on macOS Framework Python.
 - Refresh the Windows global plugin mirror from WSL2 without copying bytecode caches:

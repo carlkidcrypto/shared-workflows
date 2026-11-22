@@ -107,14 +107,16 @@ def today_calsemver(
 def discover_sphinx_venv(repo_root: Path | None = None) -> Path | None:
     """Discover the preferred local Sphinx virtualenv directory."""
     root = (repo_root or Path.cwd()).resolve()
-    candidates = [root / name for name in SPHINX_VENV_CANDIDATES]
-    shared_wsl_venv = Path.home() / "Github" / "ezsnmp" / "python3.12.venv"
-    candidates.append(shared_wsl_venv)
-    for candidate in candidates:
-        if (candidate / "bin" / "sphinx-build").is_file() or (
-            candidate / "bin" / "python"
-        ).is_file():
-            return candidate
+    for name in SPHINX_VENV_CANDIDATES:
+        candidate = root / name
+        for subdir, exe in (
+            ("bin", "sphinx-build"),
+            ("bin", "python"),
+            ("Scripts", "sphinx-build.exe"),
+            ("Scripts", "python.exe"),
+        ):
+            if (candidate / subdir / exe).is_file():
+                return candidate
     return None
 
 

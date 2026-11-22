@@ -29,7 +29,7 @@
 6. **Multi-Language Test Suite Isolation**:
    - In multi-language repositories with SWIG or native bindings, scope each language's tests strictly under `<language>/tests/` (`python/tests/`, `javascript/tests/`, `csharp/tests/`, `go/tests/`, `java/tests/`) and keep Python test configs (`.coveragerc`, `requirements.txt`) inside `python/tests/`.
 
-5. **Codecov Action SHA Pinning & Step Token Authentication**:
+7. **Codecov Action SHA Pinning & Step Token Authentication**:
    - Pin `codecov/codecov-action` to its immutable commit hash `codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574` (# v5.4.0) across all workflows to satisfy SonarCloud security rule S7637.
    - Always supply `token: ${{ secrets.CODECOV_TOKEN }}` directly in the action's `with:` block in addition to `env: CODECOV_TOKEN:`, as recent runner versions prioritize step inputs over environment variables.
    - Supply `fail_ci_if_error: false` to ensure test jobs do not fail on transient third-party API connectivity drops:
@@ -45,11 +45,11 @@
          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
      ```
 
-6. **Change Detection & Unit Test Verification**:
+8. **Change Detection & Unit Test Verification**:
    - Add `codecov.yml` to the `check-source-changes` job (`tj-actions/changed-files`) and workflow trigger paths so modifying coverage rules immediately triggers test pipelines.
    - Add automated unit test verification in the test suite to validate `codecov.yml`, `.sonarcloud.properties`, and workflow token configuration.
 
-7. **Pre-Push Code Formatting Verification**:
+9. **Pre-Push Code Formatting Verification**:
    - Always run local formatters (`black` for Python, `prettier` for JavaScript/TypeScript, `csharpier` for C#) on newly created or modified files before staging and committing.
    - Unformatted files will fail PR formatting checks (`python_black.yml`) and trigger automated bot commits directly to the branch, causing subsequent git pushes to be rejected due to stale remote references.
 

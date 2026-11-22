@@ -72,8 +72,8 @@ fi
 if [[ -z "${PYTHON_BIN}" ]]; then
     if [[ -x "${DEFAULT_PYTHON}" ]]; then
         PYTHON_BIN="${DEFAULT_PYTHON}"
-    elif [[ -x "${HOME}/Github/ezsnmp/python3.12.venv/bin/python3" ]]; then
-        PYTHON_BIN="${HOME}/Github/ezsnmp/python3.12.venv/bin/python3"
+    elif [[ -x "${SOURCE_DIR}/.venv/bin/python3" ]]; then
+        PYTHON_BIN="${SOURCE_DIR}/.venv/bin/python3"
     elif command -v python3 >/dev/null 2>&1; then
         PYTHON_BIN="$(command -v python3)"
     else

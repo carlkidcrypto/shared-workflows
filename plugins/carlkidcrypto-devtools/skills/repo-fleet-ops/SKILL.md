@@ -16,7 +16,7 @@ Standardized, non-destructive scripts for multi-repository maintenance across th
 - **Never mutate primary clones** (`<workspace_root>/<repo>` stays clean on `main`).
 - **Isolate all edits in worktrees** (`<workspace_root>/wt-<repo>-<task>`), and prune worktrees when finished.
 - **No personal paths** in committed files or scripts (use `$HOME`, `<workspace_root>`, or CLI flags).
-- **Windows / WSL2 Workspace Root Override**: On Windows 11 + WSL2 (`Ubuntu-24.04`), set `WORKSPACE_ROOT=/home/carlkidcrypto/Github` (or pass `--root`) when running fleet scripts whose default workspace path targets macOS `~/Documents/GitHub`.
+- **Windows / WSL2 Workspace Root Override**: On Windows 11 + WSL2 (`Ubuntu-24.04`), set `WORKSPACE_ROOT=$HOME/Github` (or pass `--root`) when running fleet scripts whose default workspace path targets macOS `~/Documents/GitHub`.
 
 ---
 

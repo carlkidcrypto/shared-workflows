@@ -89,7 +89,6 @@ _env_preflight_build_env() {
       "/usr/local/sbin"
       "/usr/local/bin"
       "${HOME}/.local/bin"
-      "${HOME}/Github/ezsnmp/python3.12.venv/bin"
     )
     pkg_candidates=(
       "/usr/lib/pkgconfig"
