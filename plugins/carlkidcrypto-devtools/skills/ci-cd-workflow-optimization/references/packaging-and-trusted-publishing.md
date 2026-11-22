@@ -340,3 +340,25 @@ Across repositories distributing multi-language bindings and packages (`ezsnmp_d
 - Note: Among `carlkidcrypto` repositories, only `ezsnmp` maintains a Homebrew `Formula/` (`ezsnmp.rb`); sibling repos only install upstream Homebrew build dependencies.
 
 ---
+
+### 23. Windows Native Meson, SWIG, C#, Node-API & `meson-python` Standards
+
+When building unified multi-language Meson/SWIG repositories (Python, Node-API, C#, Go, Java) on Windows GitHub Actions runners:
+
+1. **Unified Meson Architecture**:
+   - Use root `meson.build` + Ninja as the centralized build orchestrator for shared C/C++ cores and SWIG interface generators (`swig/`, `csharp/`, `javascript/`, `go/`, `java/`), and `python/meson.build` with `meson-python` as the PEP 517 backend in `pyproject.toml`.
+2. **Meson WrapDB Fallbacks on Windows**:
+   - Windows runners lack global `pkg-config` paths for native C/C++ libraries (e.g. `libcurl`). Provide WrapDB fallback files (`subprojects/curl.wrap` with `[provide] dependency_names = libcurl`) and `.gitignore` entries (`/subprojects/*` and `!/subprojects/*.wrap`) so Windows runners compile dependencies automatically.
+3. **Meson Subdirectory Custom Targets in Ninja**:
+   - Custom targets defined inside subdirectories (e.g. `javascript/meson.build`) have output paths scoped under that directory; invoking bare `ninja -C builddir <target>` fails with `ninja: error: unknown target '<target>'`. Run `ninja -C builddir` to build all default targets, and declare global aliases via `alias_target('<name>', <target_ref>)` when named invocations are needed.
+4. **`meson-python` Bundled Shared Libraries on Windows (`allow-windows-internal-shared-libs`)**:
+   - In Python extension modules built via `meson-python >= 0.18.0` that bundle internal shared libraries or subproject dependencies on Windows, configure `tool.meson-python.allow-windows-internal-shared-libs = true` in `pyproject.toml` (otherwise `meson-python` raises `NotImplementedError`).
+   - Register the package directory and any `.libs` directory with `os.add_dll_directory()` in `__init__.py` (wrapped with `# pragma: no cover` so Linux CI coverage is unaffected) or via SWIG `%pythonbegin`.
+5. **Node.js Native Addons & `vcpkg` on Windows Runners**:
+   - `windows-latest` (Windows Server 2025) includes Visual Studio 18 previews that trigger `unknown version "undefined"` in `node-gyp@10`. Use `windows-2022` (or set `GYP_MSVS_VERSION=2022`) for Node-API native addon builds across Node LTS versions (18, 20, 22, 24).
+   - When linking `vcpkg` libraries (e.g. curl) in `binding.gyp`, `vcpkg` names the import library `libcurl.lib` (not `curl.lib`). Set `library_dirs` to `C:\vcpkg\installed\x64-windows\lib`, link `libcurl.lib`, and copy `libcurl.dll` alongside the built `.node` addon or prepend `C:\vcpkg\installed\x64-windows\bin` to `$env:GITHUB_PATH`.
+6. **C# / .NET P/Invoke Library Naming & MinGW Linker Flags on Windows**:
+   - SWIG generates `[DllImport("<name>")]` without a `lib` prefix, and Windows .NET P/Invoke searches for `<name>.dll` directly. Set `name_prefix: host_machine.system() == 'windows' ? '' : 'lib'` on Meson `shared_library` targets.
+   - When compiling with MinGW GCC on Windows, link native libraries with `link_args: ['-static-libgcc', '-static-libstdc++']` to prevent missing MinGW runtime DLL errors during `dotnet test`.
+
+---

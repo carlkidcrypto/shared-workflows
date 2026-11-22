@@ -16,6 +16,7 @@ Standardized, non-destructive scripts for multi-repository maintenance across th
 - **Never mutate primary clones** (`<workspace_root>/<repo>` stays clean on `main`).
 - **Isolate all edits in worktrees** (`<workspace_root>/wt-<repo>-<task>`), and prune worktrees when finished.
 - **No personal paths** in committed files or scripts (use `$HOME`, `<workspace_root>`, or CLI flags).
+- **Windows / WSL2 Workspace Root Override**: On Windows 11 + WSL2 (`Ubuntu-24.04`), set `WORKSPACE_ROOT=$HOME/Github` (or pass `--root`) when running fleet scripts whose default workspace path targets macOS `~/Documents/GitHub`.
 
 ---
 
@@ -76,3 +77,47 @@ python3 scripts/audit_release_notes.py --repo os-specific-runner --tag v2.2.0 --
 
 - Audits releases via `gh api .../releases` for missing `auto_release_notes` sections (`Compared to:` / `**Full Changelog**:`, `## ` headers, or `(pypi.org/redacted)` links).
 - Runs in dry-run mode by default; pass `--apply` to backfill missing notes via `gh release edit`.
+
+---
+
+## Cross-Repo Configuration Synchronization (`multi-repo-sync`)
+
+When propagating standardized templates or configs across the fleet (using `ezsnmp` as the reference repository):
+
+### Standard Configuration Items
+- **GitHub Issue & PR Templates**: `.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE.md` (respect repo-specific naming such as lowercase `pull_request_template.md` in `purpleair_api`).
+- **CI & Agentic Workflows**: `.github/workflows/*.yml` and `.github/workflows/*.md` (always explicitly whitelist `api.github.com` instead of `agy` and recompile with `gh aw compile`).
+- **Dependabot**: `.github/dependabot.yml`.
+- **SonarQube Cloud Exclusions**: Root `.sonarcloud.properties` on `main` with `sonar.exclusions=docs/**` and `sonar.cpd.exclusions=docs/**` (`_build/**,docs/**` for `carlkidcrypto.github.io`).
+- **Release Tools**: `release_tools/bump_version.sh` (`release.sh`).
+
+### Sync Steps
+1. Fetch latest `origin/main` across target repos and create isolated sibling worktrees (`wt-<repo>-sync-<topic>` on branch `chore/sync-<topic>` or `feature/sync-<topic>`).
+2. Adapt runtime/platform specifics per repo (Python vs Node.js/TypeScript vs C++/SWIG).
+3. Commit with conventional messages (e.g. `chore(github): sync <item> with ezsnmp conventions`), push, and open PRs via `gh pr create --base main`. **Never merge PRs.**
+
+---
+
+## Quick Fleet Git Status & Test Dispatch
+
+Run a quick clean/branch audit across all ecosystem clones (adjust `WORKSPACE_ROOT` as needed):
+
+```bash
+python3 -c "
+import os, subprocess
+root = os.environ.get('WORKSPACE_ROOT', os.path.expanduser('~/Github'))
+repos = ['shared-workflows', 'ezsnmp', 'ezsnmp_data_logger', 'purpleair_api', 'purpleair_data_logger', 'os-specific-runner', 'purpleair-matterbridge', 'carlkidcrypto.github.io']
+for r in repos:
+    p = os.path.join(root, r)
+    if not os.path.isdir(p):
+        continue
+    status = subprocess.check_output(['git', 'status', '-s'], cwd=p).decode().strip()
+    branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=p).decode().strip()
+    print(f'[{r}] ({branch}): {status if status else \"Clean\"}')
+"
+```
+
+Common per-repo test entry points (run inside a sibling worktree):
+- **Python (`ezsnmp`, `purpleair_api`, `purpleair_data_logger`)**: `pytest` (or `cd tests && python3 -m unittest`)
+- **Node / TypeScript (`purpleair-matterbridge`, `os-specific-runner`)**: `npm test`
+- **Blog / Docs (`carlkidcrypto.github.io`)**: `.venv/bin/sphinx-build -b html source _build/html -W`

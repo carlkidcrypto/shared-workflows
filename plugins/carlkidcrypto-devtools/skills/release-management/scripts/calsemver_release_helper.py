@@ -31,6 +31,7 @@ EXTERNAL_SPEC_EXCLUSIONS: tuple[str, ...] = (
 SPHINX_VENV_CANDIDATES: tuple[str, ...] = (
     "python3.14.venv",
     "python3.13.venv",
+    "python3.12.venv",
     ".venv",
 )
 
@@ -108,10 +109,14 @@ def discover_sphinx_venv(repo_root: Path | None = None) -> Path | None:
     root = (repo_root or Path.cwd()).resolve()
     for name in SPHINX_VENV_CANDIDATES:
         candidate = root / name
-        if (candidate / "bin" / "sphinx-build").is_file() or (
-            candidate / "bin" / "python"
-        ).is_file():
-            return candidate
+        for subdir, exe in (
+            ("bin", "sphinx-build"),
+            ("bin", "python"),
+            ("Scripts", "sphinx-build.exe"),
+            ("Scripts", "python.exe"),
+        ):
+            if (candidate / subdir / exe).is_file():
+                return candidate
     return None
 
 

@@ -44,6 +44,10 @@ What `env_preflight.sh` configures (only adding directories that exist on disk):
 - **Linux `PATH` & `PKG_CONFIG_PATH`**:
   - `/usr/local/bin`, `/usr/local/sbin`, `~/.local/bin`
   - `/usr/lib/pkgconfig`, `/usr/lib/x86_64-linux-gnu/pkgconfig`, `/usr/lib/aarch64-linux-gnu/pkgconfig`, `/usr/local/lib/pkgconfig`
+- **Windows 11 + WSL2 (`Ubuntu-24.04`)**:
+  - Run all POSIX `.sh` scripts (`env_preflight.sh`, `lint_ci.sh`, `wt_preflight.sh`, `update_local_desktop.sh`) and `validate_local.py` inside WSL2 (`Ubuntu-24.04`) where Git repositories and native C/C++/Python/Node toolchains live.
+  - Pass `--python <venv-python>` to `update_local_desktop.sh` when not on macOS Framework Python.
+  - Set `WORKSPACE_ROOT` (e.g. `WORKSPACE_ROOT=$HOME/Github`) or pass `--root` explicitly when repository roots differ from `~/Documents/GitHub`.
 
 ---
 
@@ -100,22 +104,27 @@ Manual equivalent sequence:
    ```bash
    clang-format -n -Werror <cpp-and-header-files>
    ```
-3. **GitHub Actions workflows**:
+3. **TypeScript / JavaScript / C# formatting & linting** (when applicable):
+   - TypeScript / Matterbridge (`purpleair-matterbridge`): `npm run lint` (`oxlint`), `npm run format:check` / `npm run format` (`oxfmt`), `npm run typecheck` (`tsc`), `npm test` (`vitest run`), `npm run build` (`tsc`).
+   - JavaScript / JSON (SWIG bindings): `npx prettier --check "javascript/**/*.{js,json}"` (format with `--write`).
+   - C# (SWIG bindings): `csharpier check csharp/` (format with `csharpier format csharp/`).
+4. **GitHub Actions workflows**:
    ```bash
    yamllint .github/workflows
    actionlint
    ```
-4. **Python native extension build & test suite**:
+5. **Python native extension build & test suite**:
    ```bash
    python3 setup.py build_ext --inplace && pytest
    ```
-5. **C++ Meson build & test suite**:
+   *(For unittest-based suites: `cd tests && python3 -m unittest`. Target ~500 lines per test module and split thematic suites before reaching 1,000 lines.)*
+6. **C++ Meson build & test suite**:
    ```bash
    meson setup .meson_build_validate
    meson compile -C .meson_build_validate
    meson test -C .meson_build_validate --print-errorlogs
    ```
-6. **Documentation (Doxygen + Sphinx)**:
+7. **Documentation (Doxygen + Sphinx)**:
    Always create `doxygen_docs_build/doxygen` before running `doxygen .doxygen`:
    ```bash
    mkdir -p doxygen_docs_build/doxygen && doxygen .doxygen && sphinx-build -b html -W sphinx_docs_build sphinx_docs_build/_build/html
