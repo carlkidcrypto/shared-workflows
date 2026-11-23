@@ -62,3 +62,4 @@ source "$HOME/.local/net-snmp-5.10/env.sh"
 
 - Keep all Net-SNMP prefixes referenced via `$HOME/.local/net-snmp-5.10/` (never hardcode user-specific home paths).
 - Run builds and test suites inside your dedicated git worktree (`<workspace_root>/wt-<repo>-<task-name>`), never in the primary checkout root.
+- **Homebrew-Only on `macos-latest`**: MacPorts (`port install`, `/opt/local`) is removed across CI, `cibuildwheel`, and `prepare_macos_netsnmp.sh`; rely exclusively on Homebrew (`brew`) and `$HOME/.local/net-snmp-5.10/`.
