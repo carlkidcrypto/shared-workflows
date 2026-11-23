@@ -262,7 +262,6 @@ Matrix testing jobs produce both JUnit XML and stdout capture files, uploaded as
   - `<!-- pytest-coverage-native -->` & `## Pytest Coverage Report - Native 🐍`
   - `<!-- pytest-coverage-homebrew -->` & `## Pytest Coverage Report - Homebrew 🐍`
   - `<!-- pytest-coverage-dockerized -->` & `## Pytest Coverage Report - Dockerized Tests 🐍`
-  - `<!-- pytest-coverage-macports -->` & `## Pytest Coverage Report - MacPorts 🐍`
 - **Markdown Table Integrity**: Blank newlines inside GFM tables cause GitHub markdown parsers to terminate table rendering prematurely. Always clean `summaryReport` using a Python filter step (`lines = [line.strip() for line in report.splitlines() if line.strip()]`).
 
 ### 3. Native C++ Test Reporting (`publish-unit-test-result-action`)
