@@ -78,6 +78,18 @@ python3 scripts/audit_release_notes.py --repo os-specific-runner --tag v2.2.0 --
 - Audits releases via `gh api .../releases` for missing `auto_release_notes` sections (`Compared to:` / `**Full Changelog**:`, `## ` headers, or `(pypi.org/redacted)` links).
 - Runs in dry-run mode by default; pass `--apply` to backfill missing notes via `gh release edit`.
 
+### 6. Close `gh-aw` Copilot HTTP 429 Rate-Limit Issues
+
+```bash
+python3 scripts/close_aw_rate_limit_issues.py
+python3 scripts/close_aw_rate_limit_issues.py --repo ezsnmp --verify-logs
+python3 scripts/close_aw_rate_limit_issues.py --verify-logs --apply
+```
+
+- Scans open issues across `--repo` (or all `DEFAULT_REPOS` when `--repo` is omitted) for genuine `gh-aw` Copilot HTTP 429 rate-limit / credit-exhaustion failure issues (`app/github-actions` / `github-actions[bot]` or `agentic-workflows` label, title `hit engine rate limit (HTTP 429)` or body `engine_rate_limit_429` + `engine: copilot` + `gh-aw-failure-issue: true`), explicitly excluding `[aw] Detection Runs`, `[aw] No-Op Runs`, and `activation failed`.
+- Runs in dry-run mode by default; pass `--apply` to post the explanatory comment and close each matched issue as `"not planned"`.
+- Pass `--verify-logs` to extract the Actions `run_id` from each issue body and verify `gh run view <id> --log-failed` contains `ai_credits_rate_limit_error`, `errorCodes=[429]`, or `errorTypes=["rate_limit"]` before closing.
+
 ---
 
 ## Cross-Repo Configuration Synchronization (`multi-repo-sync`)
