@@ -155,7 +155,7 @@ def close_issue(
             "--repo",
             full_repo,
             "--reason",
-            "not_planned",
+            "not planned",
             "--comment",
             comment,
         ],

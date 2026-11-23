@@ -258,7 +258,7 @@ class TestDryRunAndApplyCLI:
             "--repo",
             "carlkidcrypto/ezsnmp",
             "--reason",
-            "not_planned",
+            "not planned",
             "--comment",
             mod.DEFAULT_COMMENT,
         ] in calls
