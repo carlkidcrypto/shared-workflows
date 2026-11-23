@@ -5,7 +5,7 @@ Cross-IDE **Agent Plugins 1.0** bundle packaging `carlkidcrypto` ecosystem skill
 ## Included Skills
 
 - `agentic-workflows` — GitHub Agentic Workflows (`gh-aw`) prompt routing, compilation, network allowlisting (`api.github.com`), AWF Squid proxy diagnostics, `skip-if-match`, `min-integrity: none`, `--allow-all-tools`, and inline skill protection.
-- `ci-cd-workflow-optimization` — GitHub Actions CI/CD patterns, smart change detection, multi-OS Meson/SWIG/Windows/MacPorts build standards, Codecov/Valgrind reporting, and OIDC Trusted Publishing.
+- `ci-cd-workflow-optimization` — GitHub Actions CI/CD patterns, smart change detection, multi-OS Meson/SWIG/Windows build standards, Codecov/Valgrind reporting, and OIDC Trusted Publishing.
 - `release-management` — CalSemVer release bumps, `release_tools/`, worktree preflight, and desktop packaging.
 - `sonarqube-quality-remediation` — SonarQube Cloud Automatic Analysis triage and remediation.
 - `gemini-spark-blog` — End-to-end Google Drive / Gemini Spark blog ingestion, technical accuracy auditing, Sphinx/Furo builds, and stacked PR rebasing.
