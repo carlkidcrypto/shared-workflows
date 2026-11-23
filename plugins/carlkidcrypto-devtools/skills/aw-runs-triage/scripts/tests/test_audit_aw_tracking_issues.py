@@ -197,3 +197,104 @@ class TestRunInspection:
             mod.list_tracking_issues("gh", "carlkidcrypto/carlkidcrypto.github.io")
             == []
         )
+
+
+class TestIssueClosure:
+    def test_evaluate_noop_all_true_eligible(self) -> None:
+        finding = {
+            "repo": "carlkidcrypto/ezsnmp",
+            "number": 1477,
+            "kind": "noop",
+            "workflows": [
+                {
+                    "workflow": "Coverage Autofix Python",
+                    "comment_count": 1,
+                    "latest_run_id": "43835993194",
+                    "verdict": "TRUE_NOOP",
+                }
+            ],
+        }
+        eligible, reason, comment = mod.evaluate_issue_closure(finding)
+        assert eligible is True
+        assert reason == "completed"
+        assert "genuine no-ops" in comment
+        assert "Coverage Autofix Python" in comment
+
+    def test_evaluate_detection_429_only_eligible(self) -> None:
+        finding = {
+            "repo": "carlkidcrypto/ezsnmp",
+            "number": 1501,
+            "kind": "detection",
+            "workflows": [
+                {
+                    "workflow": "Auto Update Release Notes",
+                    "comment_count": 1,
+                    "latest_run_id": "45094693938",
+                    "verdict": "RATE_LIMITED_429",
+                }
+            ],
+        }
+        eligible, reason, comment = mod.evaluate_issue_closure(finding)
+        assert eligible is True
+        assert reason == "not planned"
+        assert "HTTP 429" in comment
+
+    def test_evaluate_detection_blocks_non_429_and_warning(self) -> None:
+        finding = {
+            "repo": "carlkidcrypto/purpleair_api",
+            "number": 403,
+            "kind": "detection",
+            "workflows": [
+                {
+                    "workflow": "Coverage Autofix Python",
+                    "comment_count": 6,
+                    "latest_run_id": "45006194510",
+                    "verdict": "RATE_LIMITED_429",
+                },
+                {
+                    "workflow": "PurpleAir API Watcher",
+                    "comment_count": 3,
+                    "latest_run_id": "40373152987",
+                    "verdict": "DETECTION_FAILURE_NON_429",
+                },
+            ],
+        }
+        eligible, _, detail = mod.evaluate_issue_closure(finding)
+        assert eligible is False
+        assert "DETECTION_FAILURE_NON_429" in detail
+
+    def test_apply_issue_closures_calls_gh_only_when_apply(
+        self, monkeypatch: Any
+    ) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run_gh(_gh: str, args: list[str]) -> subprocess.CompletedProcess[str]:
+            calls.append(args)
+            return subprocess.CompletedProcess(
+                args=args, returncode=0, stdout="", stderr=""
+            )
+
+        monkeypatch.setattr(mod, "run_gh", fake_run_gh)
+        findings = [
+            {
+                "repo": "carlkidcrypto/ezsnmp",
+                "number": 1477,
+                "kind": "noop",
+                "workflows": [
+                    {
+                        "workflow": "Coverage Autofix Python",
+                        "comment_count": 1,
+                        "latest_run_id": "43835993194",
+                        "verdict": "TRUE_NOOP",
+                    }
+                ],
+            }
+        ]
+        mod.apply_issue_closures("gh", findings, apply=False)
+        assert calls == []
+        assert findings[0]["closure_action"] == "WOULD_CLOSE (completed)"
+
+        mod.apply_issue_closures("gh", findings, apply=True)
+        assert len(calls) == 1
+        assert calls[0][0:4] == ["issue", "close", "1477", "--repo"]
+        assert findings[0]["closure_action"] == "CLOSED (completed)"
