@@ -5,6 +5,7 @@ Cross-IDE **Agent Plugins 1.0** bundle packaging `carlkidcrypto` ecosystem skill
 ## Included Skills
 
 - `agentic-workflows` — GitHub Agentic Workflows (`gh-aw`) prompt routing, compilation, network allowlisting (`api.github.com`), AWF Squid proxy diagnostics, `skip-if-match`, `min-integrity: none`, `--allow-all-tools`, and inline skill protection.
+- `aw-runs-triage` — Fleet-wide auditing and triage of `[aw] No-Op Runs` and `[aw] Detection Runs` issues (true no-ops vs. misconfigured workflows, and HTTP 429 detection failures vs. real detector/threat issues).
 - `ci-cd-workflow-optimization` — GitHub Actions CI/CD patterns, smart change detection, multi-OS Meson/SWIG/Windows build standards, Codecov/Valgrind reporting, and OIDC Trusted Publishing.
 - `release-management` — CalSemVer release bumps, `release_tools/`, worktree preflight, and desktop packaging.
 - `sonarqube-quality-remediation` — SonarQube Cloud Automatic Analysis triage and remediation.
@@ -27,6 +28,8 @@ Cross-IDE **Agent Plugins 1.0** bundle packaging `carlkidcrypto` ecosystem skill
 - `skills/release-management/scripts/update_local_desktop.sh` — Non-editably installs desktop apps into Framework Python 3.13, cleans build artifacts, and runs import/CLI smoke tests.
 - `skills/sonarqube-quality-remediation/scripts/sonar_triage.py` — SonarCloud Quality Gate, issue, hotspot, and coverage/duplication CLI.
 - `skills/gemini-spark-blog/scripts/` — Blog workflow helpers (`sync_drive_post.py`, canonical 1887-line `validate_blog_code.py`, `rebase_stack.py`).
+- `skills/repo-fleet-ops/scripts/close_aw_rate_limit_issues.py` — Scans and closes verified `gh-aw` Copilot HTTP 429 rate-limit failure issues across `carlkidcrypto` repositories.
+- `skills/aw-runs-triage/scripts/audit_aw_tracking_issues.py` — Audits open `[aw] No-Op Runs` and `[aw] Detection Runs` tracking issues across `carlkidcrypto` repositories, classifying each workflow's latest run into true no-op, suspect misconfiguration, HTTP 429 rate limit, non-429 detection failure, or threat warning.
 - `agents/the_scribe.md` & `skills/local-validation-and-dev/references/repo-skills-and-personas.md` — Canonical `The Scribe` documentation agent persona and consolidated `pull-request-guide`, `sphinx-docs`, `python-testing`, and `cpp-testing` standards.
 
 ## Usage
