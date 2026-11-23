@@ -14,7 +14,7 @@ description: >-
 Use this skill when auditing `[aw] No-Op Runs` (`gh-aw-noop-runs`) and `[aw] Detection Runs` (`gh-aw-detection-runs`) issues across `carlkidcrypto` repositories (such as `ezsnmp#1477` and `ezsnmp#1501`).
 
 > [!IMPORTANT]
-> `[aw] No-Op Runs` and `[aw] Detection Runs` are rolling `gh-aw`-managed tracking issues (`Do not close this issue manually`). **Never** close them with `gh issue close` or `close_aw_rate_limit_issues.py`. Instead, verify every workflow posting to them and fix any misconfigured `.github/workflows/*.md` (or `shared/*.md` in `shared-workflows`) via PR.
+> `[aw] No-Op Runs` and `[aw] Detection Runs` are rolling `gh-aw`-managed tracking issues, so **never** close them blindly with `close_aw_rate_limit_issues.py`. Instead, verify every workflow posting to them first; only after all workflows on an issue are verified clean (`TRUE_NOOP` for No-Op Runs, or `RATE_LIMITED_429` / `DETECTION_SUCCESS_OR_RECOVERED` for Detection Runs) should you close the issue with `--apply` and an explanatory summary comment. Any `FALSE_NOOP_SUSPECT`, `DETECTION_FAILURE_NON_429`, or `THREAT_WARNING` blocks auto-closure until fixed or reviewed.
 
 ---
 
@@ -26,8 +26,11 @@ Run the deterministic audit script from `carlkidcrypto-devtools`:
 # Quick inventory of all open [aw] No-Op Runs and [aw] Detection Runs issues:
 python3 plugins/carlkidcrypto-devtools/skills/aw-runs-triage/scripts/audit_aw_tracking_issues.py
 
-# Deep inspection: checks the latest run per (repo, issue, workflow) via gh run view:
+# Deep inspection (dry-run): checks latest run per workflow and shows WOULD_CLOSE / SKIP_CLOSE:
 python3 plugins/carlkidcrypto-devtools/skills/aw-runs-triage/scripts/audit_aw_tracking_issues.py --inspect-runs
+
+# Close eligible verified issues with an explanatory comment (implies --inspect-runs):
+python3 plugins/carlkidcrypto-devtools/skills/aw-runs-triage/scripts/audit_aw_tracking_issues.py --apply
 
 # Scope to specific repos or output JSON for downstream automation:
 python3 plugins/carlkidcrypto-devtools/skills/aw-runs-triage/scripts/audit_aw_tracking_issues.py --repos ezsnmp ezsnmp_data_logger --inspect-runs --json

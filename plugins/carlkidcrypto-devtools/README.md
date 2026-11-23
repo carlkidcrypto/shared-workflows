@@ -29,7 +29,7 @@ Cross-IDE **Agent Plugins 1.0** bundle packaging `carlkidcrypto` ecosystem skill
 - `skills/sonarqube-quality-remediation/scripts/sonar_triage.py` — SonarCloud Quality Gate, issue, hotspot, and coverage/duplication CLI.
 - `skills/gemini-spark-blog/scripts/` — Blog workflow helpers (`sync_drive_post.py`, canonical 1887-line `validate_blog_code.py`, `rebase_stack.py`).
 - `skills/repo-fleet-ops/scripts/close_aw_rate_limit_issues.py` — Scans and closes verified `gh-aw` Copilot HTTP 429 rate-limit failure issues across `carlkidcrypto` repositories.
-- `skills/aw-runs-triage/scripts/audit_aw_tracking_issues.py` — Audits open `[aw] No-Op Runs` and `[aw] Detection Runs` tracking issues across `carlkidcrypto` repositories, classifying each workflow's latest run into true no-op, suspect misconfiguration, HTTP 429 rate limit, non-429 detection failure, or threat warning.
+- `skills/aw-runs-triage/scripts/audit_aw_tracking_issues.py` — Audits open `[aw] No-Op Runs` and `[aw] Detection Runs` tracking issues across `carlkidcrypto` repositories, classifies each workflow's latest run, and (with `--apply`) closes fully verified issues with an explanatory summary comment.
 - `agents/the_scribe.md` & `skills/local-validation-and-dev/references/repo-skills-and-personas.md` — Canonical `The Scribe` documentation agent persona and consolidated `pull-request-guide`, `sphinx-docs`, `python-testing`, and `cpp-testing` standards.
 
 ## Usage

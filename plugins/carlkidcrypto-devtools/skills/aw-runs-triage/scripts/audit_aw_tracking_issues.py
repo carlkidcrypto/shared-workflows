@@ -319,6 +319,121 @@ def audit_repositories(
     return findings
 
 
+def evaluate_issue_closure(issue_finding: Dict[str, Any]) -> Tuple[bool, str, str]:
+    """Return (eligible, close_reason, comment_or_skip_reason) for a tracking issue."""
+    workflows = issue_finding.get("workflows") or []
+    if not workflows:
+        return (False, "", "No workflow comments recorded")
+
+    verdicts = [wf.get("verdict") or "NOT_INSPECTED" for wf in workflows]
+    if any(v == "NOT_INSPECTED" for v in verdicts):
+        return (False, "", "Run inspection required before closing")
+
+    kind = issue_finding.get("kind")
+    lines = [
+        f"| {wf['workflow']} | {wf['comment_count']} | {wf.get('latest_run_id') or '-'} | `{wf['verdict']}` |"
+        for wf in workflows
+    ]
+    table = "\n".join(
+        [
+            "| Workflow | Comments | Latest Run | Verdict |",
+            "| :--- | ---: | :--- | :--- |",
+            *lines,
+        ]
+    )
+
+    if kind == "noop":
+        if all(v == "TRUE_NOOP" for v in verdicts):
+            comment = (
+                "Closing after auditing all reported workflows on this tracking issue: "
+                "every workflow's latest run succeeded with `reported_no_action` and zero "
+                "firewall, DIFC, permission, or tool errors (genuine no-ops, no GH-AW "
+                "misconfigurations detected).\n\n"
+                f"{table}"
+            )
+            return (True, "completed", comment)
+        blocking = sorted({v for v in verdicts if v != "TRUE_NOOP"})
+        return (False, "", f"Blocked by non-true-noop verdicts: {', '.join(blocking)}")
+
+    if kind == "detection":
+        safe_detection = {"RATE_LIMITED_429", "DETECTION_SUCCESS_OR_RECOVERED"}
+        if all(v in safe_detection for v in verdicts):
+            has_429 = any(v == "RATE_LIMITED_429" for v in verdicts)
+            if has_429:
+                reason = "not planned"
+                summary = (
+                    "Closing after auditing all reported workflows on this tracking issue: "
+                    "every `detector_execution_failure` was verified in GitHub Actions logs "
+                    "to be caused by Copilot HTTP 429 / `quota_exceeded` (not a workflow "
+                    "misconfiguration or security threat). Workflows will re-run normally once "
+                    "Copilot credits reset."
+                )
+            else:
+                reason = "completed"
+                summary = (
+                    "Closing after auditing all reported workflows on this tracking issue: "
+                    "all latest runs succeeded or recovered cleanly with no threat warnings or "
+                    "misconfigurations."
+                )
+            return (True, reason, f"{summary}\n\n{table}")
+        blocking = sorted({v for v in verdicts if v not in safe_detection})
+        return (
+            False,
+            "",
+            f"Blocked by non-429 / warning verdicts: {', '.join(blocking)}",
+        )
+
+    return (False, "", f"Unsupported tracking issue kind: {kind}")
+
+
+def close_tracking_issue(
+    gh_bin: str,
+    full_repo: str,
+    number: int,
+    reason: str,
+    comment: str,
+) -> None:
+    """Close a tracking issue with an explanatory comment via `gh issue close`."""
+    res = run_gh(
+        gh_bin,
+        [
+            "issue",
+            "close",
+            str(number),
+            "--repo",
+            full_repo,
+            "--reason",
+            reason,
+            "--comment",
+            comment,
+        ],
+    )
+    if res.returncode != 0:
+        raise RuntimeError(
+            f"gh issue close #{number} failed for {full_repo}: {res.stderr.strip()}"
+        )
+
+
+def apply_issue_closures(
+    gh_bin: str,
+    findings: List[Dict[str, Any]],
+    apply: bool = False,
+) -> None:
+    """Evaluate and optionally close eligible tracking issues, recording action status."""
+    for item in findings:
+        eligible, reason, detail = evaluate_issue_closure(item)
+        if not eligible:
+            item["closure_action"] = "SKIP_CLOSE"
+            item["closure_detail"] = detail
+            continue
+        if apply:
+            close_tracking_issue(gh_bin, item["repo"], item["number"], reason, detail)
+            item["closure_action"] = f"CLOSED ({reason})"
+        else:
+            item["closure_action"] = f"WOULD_CLOSE ({reason})"
+        item["closure_detail"] = detail
+
+
 def format_markdown_report(findings: List[Dict[str, Any]]) -> str:
     """Format audit findings as a concise Markdown summary."""
     if not findings:
@@ -343,6 +458,15 @@ def format_markdown_report(findings: List[Dict[str, Any]]) -> str:
             lines.append(
                 f"| {wf['workflow']} | {wf['comment_count']} | "
                 f"`{wf['latest_outcome']}` | {run_col} | `{wf['verdict']}` | {wf['detail']} |"
+            )
+        if item.get("closure_action"):
+            lines.append(
+                f"\n**Closure**: `{item['closure_action']}`"
+                + (
+                    f" — {item['closure_detail']}"
+                    if item["closure_action"] == "SKIP_CLOSE"
+                    else ""
+                )
             )
         lines.append("")
     return "\n".join(lines)
@@ -369,6 +493,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Inspect the latest Actions run per workflow to classify 429 vs misconfig",
     )
     parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Close eligible verified issues with an explanatory comment (implies --inspect-runs)",
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         help="Output machine-readable JSON instead of Markdown",
@@ -382,7 +511,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
     gh_bin = find_gh()
     repos = resolve_repos(args.owner, args.repos)
-    findings = audit_repositories(gh_bin, repos, inspect_runs=args.inspect_runs)
+    inspect = args.inspect_runs or args.apply
+    findings = audit_repositories(gh_bin, repos, inspect_runs=inspect)
+    if inspect:
+        apply_issue_closures(gh_bin, findings, apply=args.apply)
     if args.json:
         print(json.dumps(findings, indent=2))
     else:
