@@ -291,6 +291,7 @@ For native C++ suites compiled with CMake or Meson (generating GoogleTest JUnit 
         with:
           pattern: cpp-test-results-*
           path: test-results
+          merge-multiple: false
 
       - name: Publish C++ Test Results
         uses: EnricoMi/publish-unit-test-result-action@7622c5bf3d112a72ab4fa3951c2aa5723d8ab92d # v2
@@ -299,6 +300,7 @@ For native C++ suites compiled with CMake or Meson (generating GoogleTest JUnit 
           check_name: C++ Test Results - Native
           comment_title: C++ Test Results - Native
   ```
+- **Avoid `merge-multiple: true` on Shared JUnit XML Filenames**: Never set `merge-multiple: true` when downloading multi-OS JUnit XML artifacts (`cpp-test-results-*`) that share the same filename (`testlog.junit.xml`). Merging flattens all artifacts into `test-results/testlog.junit.xml` and overwrites/corrupts the XML file, causing `publish-unit-test-result-action` to fail with `XMLSyntaxError: Extra content at the end of the document`. Keep `merge-multiple: false` so each OS artifact remains isolated in its own subdirectory (`test-results/cpp-test-results-ubuntu-latest/testlog.junit.xml`, etc.).
 
 ---
 

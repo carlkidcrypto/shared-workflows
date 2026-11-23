@@ -145,6 +145,17 @@ Always leave the worktree clean before staging (`git add <file1> <file2>`) and p
 
 ---
 
-## 5. Consolidated Agent Personas & Repository Skills
+## 5. Cross-Platform C++ & Python Testing Pitfalls
+
+- **Net-SNMP `snmp_parse_args()` `getopt()` Reset & Thread Safety (C++)**:
+  - Reset glibc `getopt()` state with `optind = 0;` before `snmp_parse_args()` on Linux (and `optind = 1; optreset = 1;` on BSD/macOS) so repeated in-process calls re-initialize internal parser state cleanly.
+  - Guard `snmp_parse_args()` calls with `std::scoped_lock(g_netsnmp_setup_mutex, g_netsnmp_mib_mutex)` to prevent concurrent threads from racing on global Net-SNMP `getopt()` and MIB initialization state.
+- **Windows `pytest` `os.name` Monkeypatching (`NotImplementedError`)**:
+  - Never use `monkeypatch.setattr(os, "name", "posix")` in tests that run on Windows: `pathlib.Path()` checks `os.name`, and mutating `os.name` globally causes `pathlib.Path(...)` calls on Windows to fail with `NotImplementedError: cannot instantiate 'PosixPath'`.
+  - Instead, patch an `os` module proxy onto the target module under test (e.g., `monkeypatch.setattr(target_module, "os", _OsProxy(os, name="posix"))`) so `pathlib` and the test runner continue to see the real `os.name`.
+
+---
+
+## 6. Consolidated Agent Personas & Repository Skills
 
 - [repo-skills-and-personas.md](references/repo-skills-and-personas.md) — Canonical rules for `the_scribe.md` (`../../agents/the_scribe.md`), `pull-request-guide`, `sphinx-docs`, `python-testing`, and `cpp-testing` shared across all `carlkidcrypto` repositories.

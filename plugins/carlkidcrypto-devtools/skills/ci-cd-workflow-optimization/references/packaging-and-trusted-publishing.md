@@ -24,6 +24,11 @@ When distributing precompiled binary wheels for C/C++ extensions across Linux, m
    - `delocate-wheel` treats `/usr/lib/*` and `/System/Library/*` as system libraries and does not vendor them into the wheel.
    - Linking against Homebrew bottles causes `delocate-wheel` to vendor Homebrew dylibs and their transitive dependencies, which fail with `delocate.libsana.DelocationError: Library dependencies do not satisfy target MacOS version 11.0: ... has a minimum target of 26.0` when runners use newer macOS images.
    - For libraries requiring Homebrew (e.g., custom OpenSSL builds), align `MACOSX_DEPLOYMENT_TARGET` dynamically to the runner's OS major version (`MACOS_MAJOR=$(sw_vers -productVersion | cut -d. -f1)`).
+6. **`cibuildwheel` vs. `pure-python` Build Mode for C/C++ SWIG Repositories**:
+   - Never use `build-mode: pure-python` on `ubuntu` for repositories with C/C++ or SWIG native extensions (`ezsnmp`, `purpleair_api`, `ezsnmp_data_logger`). Building with `python -m build --wheel` and `swig` on Ubuntu produces an un-repaired `linux_x86_64` wheel without `auditwheel` repair, which TestPyPI and PyPI reject (`Binary wheel ... has an unsupported platform tag 'linux_x86_64'`).
+   - Always use `build-mode: cibuildwheel` for C/C++ SWIG repositories so `auditwheel`, `delocate`, and `delvewheel` produce compliant `manylinux_*`, `macosx_*`, and `win_*` wheels. Reserve `pure-python` strictly for pure-Python packages with no compiled extensions.
+7. **Homebrew-Only on `macos-latest` (No MacPorts)**:
+   - Use **Homebrew-only** on `macos-latest` for CI builds, `cibuildwheel`, and `prepare_macos_netsnmp.sh`. Do not install or reference MacPorts (`port install`, `/opt/local`).
 
 ---
 
@@ -173,14 +178,18 @@ NuGet.org supports keyless Trusted Publishing via OpenID Connect (OIDC), elimina
    * **Repository**: Exact GitHub repository name (`ezsnmp_data_logger`, `purpleair_api`, etc.)
    * **Workflow File**: Workflow filename (`build_and_publish_to_nuget.yml`)
 
-### 2. Workflow Permissions & Authentication
-- Grant OIDC permissions at the job or workflow level:
+### 2. Workflow Permissions & Authentication (Caller-Side OIDC Requirement)
+- Both `pypa/gh-action-pypi-publish` (PyPI/TestPyPI) and `NuGet/login` (NuGet.org) validate the OIDC `job_workflow_ref` claim:
+  - `NuGet/login` enforces that `job_workflow_ref` starts with `<owner>/<repo>/.github/workflows/` (matching the calling repository's own workflow).
+  - When a reusable workflow in `carlkidcrypto/shared-workflows` executes the publish step directly, `job_workflow_ref` resolves to `carlkidcrypto/shared-workflows/.github/workflows/reusable_*.yml`, causing OIDC exchange to fail.
+- **Caller-Side Publish Pattern**: Pass `skip-publish: true` to `reusable_pypi_publish.yml` / `reusable_nuget_publish.yml`, gate a caller-side `publish` job on `outputs.artifacts-built == 'true'`, download the built artifacts, and run `pypa/gh-action-pypi-publish` or `NuGet/login` + `dotnet nuget push` directly in the caller workflow.
+- **Retain `id-token: write` on Caller Build Jobs**: Even when passing `skip-publish: true`, the caller job invoking the reusable workflow **must** retain `id-token: write` in its `permissions:` block (because GitHub Actions requires caller permissions to satisfy the reusable workflow's declared `permissions`):
   ```yaml
   permissions:
     contents: read
     id-token: write
   ```
-- Authenticate via the official `nuget/login` action:
+- Authenticate via the official `nuget/login` action in the caller-side publish job:
   ```yaml
   - name: Authenticate with NuGet.org (OIDC Trusted Publishing)
     if: env.NUGET_API_KEY == ''
@@ -295,7 +304,7 @@ Across repositories distributing multi-language bindings and packages (`ezsnmp_d
    - Generates SWIG C# wrappers and compiles C# assemblies with Meson/Ninja or dotnet CLI.
    - Packs `.nupkg` via `dotnet pack -c Release -o dist-nuget`.
    - Uploads `.nupkg` artifacts to run artifacts before publishing.
-   - Authenticates via OIDC Trusted Publishing (`NuGet/login@v1` for `carlkidcrypto-nuget`) with fallback to `NUGET_API_KEY`.
+   - For OIDC Trusted Publishing, pass `skip-publish: true` (retaining `id-token: write` on the caller job) and run `NuGet/login@v1` + `dotnet nuget push` in a caller-side publish job so `job_workflow_ref` starts with `<owner>/<repo>/.github/workflows/`.
    - Idempotently publishes to NuGet.org (`--skip-duplicate`) and GitHub Packages.
 
 2. **npm (`build_and_publish_to_npm.yml`)**:
@@ -306,15 +315,15 @@ Across repositories distributing multi-language bindings and packages (`ezsnmp_d
    - Safely negotiates authentication (OIDC with fallback to `NPM_TOKEN`), pre-checks existing package versions on npm, and publishes with `--access public --provenance` (using `--tag next` for prereleases, `--tag latest` for stable releases).
 
 3. **PyPI (`build_and_publish_to_pypi.yml` / `reusable_pypi_publish.yml`)**:
-   - Compiles binary wheels across `ubuntu-latest`, `windows-latest`, and `macos-latest` using `cibuildwheel`.
+   - Compiles binary wheels across `ubuntu-latest`, `windows-latest`, and `macos-latest` using `cibuildwheel` (never `pure-python` on `ubuntu` for C/C++ SWIG repos, which produces un-repaired `linux_x86_64` wheels rejected by PyPI/TestPyPI).
    - Builds source distribution (`sdist`) via `python -m build`.
    - Decoupled packaging and artifact uploads (`wheels-*`, `sdist`) before publishing.
-   - Publishes to PyPI via `pypa/gh-action-pypi-publish@release/v1.14` with **pure OIDC Trusted Publishing** (`id-token: write`, no `PYPI_API_TOKEN` / `secrets.pypi-token` fallback) and `skip-existing: true`.
+   - For OIDC Trusted Publishing, pass `skip-publish: true` (retaining `id-token: write` on the caller job) and run `pypa/gh-action-pypi-publish@release/v1.14` in a caller-side publish job gated on `outputs.artifacts-built == 'true'` with `skip-existing: true` (no `PYPI_API_TOKEN` / `secrets.pypi-token` fallback).
 
 4. **TestPyPI (`build_and_publish_to_test_pypi.yml` / `reusable_pypi_publish.yml`)**:
    - Push-to-`main` gated test distribution protected by smart file-change detection (`tj-actions/changed-files@v47.0.6`).
-   - Decoupled wheel and sdist artifact preservation.
-   - Publishes to `https://test.pypi.org/legacy/` via **pure OIDC Trusted Publishing** (`id-token: write`, no token fallback) with `skip-existing: true`.
+   - Decoupled wheel and sdist artifact preservation (`cibuildwheel` mode for C/C++ SWIG repos).
+   - Uses caller-side pure OIDC Trusted Publishing (`skip-publish: true` with `id-token: write` retained on the caller job, publishing `cibw-wheels-*` + `sdist` in the caller job) to `https://test.pypi.org/legacy/` with `skip-existing: true`.
 
 5. **Go (`build_and_publish_to_go.yml`)**:
    - Configures Go 1.23, compiles C++ core and SWIG Go bindings, and executes test suite (`go test -v ./tests/...`).

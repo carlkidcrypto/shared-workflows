@@ -31,6 +31,8 @@ This reference centralizes the generic rules previously duplicated across per-re
   - Use `scripts/analyze_python_coverage_gaps.py` to statically verify that new callables are referenced by unit tests.
 - **Daemon / Fixture Hygiene**:
   - For SNMP repositories (`ezsnmp`, `ezsnmp_data_logger`), ensure local `snmpd` uses the repository's test `snmpd.conf` when running live integration tests.
+- **Windows `os.name` Monkeypatching Pitfall**:
+  - Never call `monkeypatch.setattr(os, "name", "posix")` in cross-platform pytest suites; `pathlib.Path()` reads `os.name` globally and raises `NotImplementedError: cannot instantiate 'PosixPath'` on Windows. Patch an `os` module proxy onto the target module under test instead.
 
 ## 4. C++ Native Testing Standards (`cpp-testing`)
 
@@ -38,3 +40,5 @@ This reference centralizes the generic rules previously duplicated across per-re
   - Configure native C++ test builds with coverage enabled (`meson setup build -Db_coverage=true` or CMake equivalent) and compile via `ninja -C build`.
   - Execute tests serially (`meson test -C build --num-processes 1 --print-errorlogs`) when test binaries share local daemon ports or `.gcda` coverage counters.
   - When debugging memory safety or undefined behavior, run under `ASAN_OPTIONS='halt_on_error=0' UBSAN_OPTIONS='halt_on_error=0'`.
+- **Net-SNMP `snmp_parse_args()` `getopt()` Reset & Locking**:
+  - Before invoking `snmp_parse_args()`, reset glibc `getopt()` state with `optind = 0;` on Linux (and `optind = 1; optreset = 1;` on BSD/macOS) and hold `std::scoped_lock(g_netsnmp_setup_mutex, g_netsnmp_mib_mutex)` so concurrent threads do not race on global `getopt()` or MIB state.
