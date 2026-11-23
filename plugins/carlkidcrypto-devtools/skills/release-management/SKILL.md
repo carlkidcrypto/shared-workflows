@@ -214,6 +214,12 @@ When requested to prepare a release:
 
 3. **Execute Version Bump & Touchpoint Sync**:
    - Run `./release_tools/bump_version.sh <version>` (or pass dependency version e.g. `./release_tools/bump_version.sh <version> <dep_version>`).
+   - **Data Logger Upstream Dependency Bump Rule (`ezsnmp_data_logger` & `purpleair_data_logger`)**: Whenever preparing a release bump in a data logger repository, also check the latest published release of its upstream base library (`ezsnmp` for `ezsnmp_data_logger`, `purpleair_api` for `purpleair_data_logger` — verifying both the GitHub tag via `git ls-remote --tags` and PyPI JSON) and bump **all** upstream dependency touchpoints to match:
+     - Packaging & requirements: `pyproject.toml`, `setup.cfg`, `requirements.txt` / `tests/requirements.txt`.
+     - C++ / Python / provisioning scripts: `src/version.cpp`, `include/*/version.h`, `<pkg>/__init__.py`, `tools/prepare_*_source.py`, `tools/prepare_*_netsnmp.sh`.
+     - Unit tests & docs: `cpp_tests/`, `python_tests/`, `README.rst`, `HOWTOAI.rst`, `bindings/README.rst`, `sphinx_docs_build/`.
+     - CI workflows: `.github/workflows/` (`third-party-ref`, `ref:`, `pip install` pins).
+     - Verify with `grep -rn "<old_dep_version>"` (excluding `CHANGELOG.md` and `docs/`) that zero stale upstream dependency pins remain.
    - Verify package configs (`setup.cfg`, `pyproject.toml`, `package.json`), docs config (`conf.py`), READMEs, manifests, and test requirements.
    - Synchronize CI matrices (`tests.yml`, `sphinx_build.yml`, `verify_syntax.yml`, `.github/actions/build-distribution`). Ensure `sphinx_build.yml` specifies `python-version: "3.14"` and includes `pull_request` triggers targeting `main`.
    - Ensure `.nojekyll` is in place for GitHub Pages documentation deployments.
