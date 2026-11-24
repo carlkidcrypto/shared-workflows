@@ -153,6 +153,8 @@ Always leave the worktree clean before staging (`git add <file1> <file2>`) and p
 - **Windows `pytest` `os.name` Monkeypatching (`NotImplementedError`)**:
   - Never use `monkeypatch.setattr(os, "name", "posix")` in tests that run on Windows: `pathlib.Path()` checks `os.name`, and mutating `os.name` globally causes `pathlib.Path(...)` calls on Windows to fail with `NotImplementedError: cannot instantiate 'PosixPath'`.
   - Instead, patch an `os` module proxy onto the target module under test (e.g., `monkeypatch.setattr(target_module, "os", _OsProxy(os, name="posix"))`) so `pathlib` and the test runner continue to see the real `os.name`.
+- **Net-SNMP Patch Parity (`ezsnmp`)**:
+  - Whenever `ezsnmp/src/net-snmp-5.10-final-patched/*.cpp` is modified, mirror the edits in `ezsnmp/patches/master_src/*.cpp` and run `./ezsnmp/patches/do_all_that_stuff.sh 5.10` before pushing so `ezsnmp/patches/net-snmp-5.10-patches/*.patch` stays in sync with the patched C++ sources.
 
 ---
 

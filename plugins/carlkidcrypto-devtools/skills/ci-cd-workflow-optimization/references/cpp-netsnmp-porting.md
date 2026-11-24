@@ -13,9 +13,8 @@ This guide documents the patch generation pipeline, C++17 `getopt()` porting inv
 ### Source-of-Truth Workflow
 
 1. **Edit Upstream-Derived Sources**: Make all C++ porting changes inside `patches/master_src/` (and patch scripts if adding new files).
-2. **Regenerate Patches**: Run `./patches/make_patches.sh` to diff `patches/master_src/` against the upstream Net-SNMP tarball sources and emit unified `.patch` files.
-3. **Apply & Format**: Run `./patches/apply_patches.sh` to produce `net-snmp-*-final-patched/` and apply `clang-format` consistently.
-4. **Byte-for-Byte Parity Invariant**: Verify that re-running `make_patches.sh` + `apply_patches.sh` + `clang-format` produces zero diff against the committed `net-snmp-*-final-patched/` files (`git diff --exit-code`).
+2. **Regenerate Patches**: Run `./ezsnmp/patches/do_all_that_stuff.sh 5.10` (or `./patches/make_patches.sh` + `./patches/apply_patches.sh`) to diff `patches/master_src/` against the upstream Net-SNMP tarball sources, emit unified `.patch` files under `ezsnmp/patches/net-snmp-5.10-patches/`, regenerate `net-snmp-*-final-patched/`, and apply `clang-format`.
+3. **Byte-for-Byte Parity Invariant**: Verify that re-running the patch pipeline produces zero diff against the committed `net-snmp-*-final-patched/` files (`git diff --exit-code`).
 
 ---
 
@@ -63,3 +62,10 @@ source "$HOME/.local/net-snmp-5.10/env.sh"
 - Keep all Net-SNMP prefixes referenced via `$HOME/.local/net-snmp-5.10/` (never hardcode user-specific home paths).
 - Run builds and test suites inside your dedicated git worktree (`<workspace_root>/wt-<repo>-<task-name>`), never in the primary checkout root.
 - **Homebrew-Only on `macos-latest`**: MacPorts (`port install`, `/opt/local`) is removed across CI, `cibuildwheel`, and `prepare_macos_netsnmp.sh`; rely exclusively on Homebrew (`brew`) and `$HOME/.local/net-snmp-5.10/`.
+
+---
+
+## 4. Docker `snmpd` & Valgrind Python 3.12+ Pitfalls
+
+- **Debian 13 `libnl-route-3-dev` Requirement for `snmpd`**: Debian splits `libnl-route-3-dev` from `libnl-3-dev`. Without `libnl-route-3-dev` installed during Net-SNMP source builds, `./configure` detects `netlink/netlink.h` without `rtnl_link_alloc_cache` and silently drops `mibII`, `if-mib`, `ip-mib`, `tcp-mib`, and `udp-mib` from `snmpd` (causing `IF-MIB::ifAdminStatus.1` and interface queries to return `No Such Object`). Always include `libnl-route-3-dev` in Debian Net-SNMP Docker images.
+- **Valgrind PEP 489 Multi-Phase Init (`SWIG_mod_exec`)**: On Python 3.12+, SWIG extension module initialization runs inside `SWIG_mod_exec(_object*)` (`PyModule_ExecDef`) rather than `PyInit_*`. Native Valgrind leak checkers must exclude both `PyInit_` and `SWIG_mod_exec` one-time module-load allocations to avoid false positives on Python 3.12+.

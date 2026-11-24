@@ -90,6 +90,27 @@ python3 scripts/close_aw_rate_limit_issues.py --verify-logs --apply
 - Runs in dry-run mode by default; pass `--apply` to post the explanatory comment and close each matched issue as `"not planned"`.
 - Pass `--verify-logs` to extract the Actions `run_id` from each issue body and verify `gh run view <id> --log-failed` contains `ai_credits_rate_limit_error`, `errorCodes=[429]`, or `errorTypes=["rate_limit"]` before closing.
 
+### 7. Retarget Stacked PRs (Auto-Unstack Stale GitHub PR Stacks)
+
+```bash
+python3 scripts/retarget_stacked_pr.py --repo carlkidcrypto/ezsnmp --pr 1530 --base main --dry-run
+python3 scripts/retarget_stacked_pr.py --repo carlkidcrypto/ezsnmp --pr 1530 --base main
+```
+
+- Queries `GET /repos/{owner}/{repo}/pulls/{pr}` to detect whether GitHub still associates the PR with a stack (`.stack.number`), which causes `gh pr edit --base` to fail with `Cannot change the base branch because the pull request is part of a stack`.
+- When a stack is attached, calls `POST /repos/{owner}/{repo}/stacks/{stack_number}/unstack` first and then retargets the PR via `gh pr edit --base <branch>`.
+- Supports `--dry-run` and `--json`.
+
+### 8. Inspect PR CI Checks & Rerun Failed Runs
+
+```bash
+python3 scripts/inspect_pr_ci.py --repo carlkidcrypto/ezsnmp --pr 1530
+python3 scripts/inspect_pr_ci.py --repo carlkidcrypto/ezsnmp --pr 1530 --rerun-failed
+```
+
+- Summarizes `statusCheckRollup` counts (`pass`, `fail`, `pending`, `skipped`), lists every non-passing check with its workflow name, `run_id`, and `job_id`, and avoids ad-hoc `gh pr view --json statusCheckRollup` Python one-liners.
+- Pass `--rerun-failed` (optionally with `--dry-run`) to trigger `POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs` for every unique failed Actions run on the PR.
+
 ---
 
 ## Cross-Repo Configuration Synchronization (`multi-repo-sync`)

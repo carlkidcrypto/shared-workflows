@@ -12,7 +12,8 @@ echo "=== Preparing Net-SNMP ${NETSNMP_VERSION} for Linux ==="
 
 if [[ -x "${PREFIX}/bin/net-snmp-config" ]]; then
     INSTALLED_VER=$("${PREFIX}/bin/net-snmp-config" --version || true)
-    if [[ "${INSTALLED_VER}" == *"5.10"* ]]; then
+    INSTALLED_LIBDIR=$("${PREFIX}/bin/net-snmp-config" --libdir 2>/dev/null | sed 's/^-L//' || true)
+    if [[ "${INSTALLED_VER}" == *"5.10"* && -n "${INSTALLED_LIBDIR}" && -f "${INSTALLED_LIBDIR}/pkgconfig/netsnmp.pc" ]]; then
         echo "Net-SNMP ${INSTALLED_VER} already installed at ${PREFIX}. Skipping build."
         exit 0
     fi
@@ -52,7 +53,7 @@ cd "${SOURCE_DIR}"
 
 NPROCS=$(nproc 2>/dev/null || echo 2)
 DEFAULT_MIBS="IP-MIB:IF-MIB:TCP-MIB:UDP-MIB:SNMPv2-MIB:RFC1213-MIB:NOTIFICATION-LOG-MIB:DISMAN-EVENT-MIB:DISMAN-SCHEDULE-MIB:HOST-RESOURCES-MIB:HOST-RESOURCES-TYPES:UCD-SNMP-MIB:UCD-DEMO-MIB:SNMP-TARGET-MIB:NET-SNMP-AGENT-MIB:NET-SNMP-EXTEND-MIB:SNMP-FRAMEWORK-MIB:SNMP-MPD-MIB:SNMP-USER-BASED-SM-MIB:SNMP-VIEW-BASED-ACM-MIB:SNMP-COMMUNITY-MIB:NET-SNMP-VACM-MIB"
-DEFAULT_MIBDIRS="\$HOME/.snmp/mibs:/usr/share/snmp/mibs:/usr/share/snmp/mibs/iana:/usr/share/snmp/mibs/ietf:/usr/local/share/snmp/mibs:/var/lib/snmp/mibs:/var/lib/snmp/mibs/iana:/var/lib/snmp/mibs/ietf"
+DEFAULT_MIBDIRS="\$HOME/.snmp/mibs:/usr/share/snmp/mibs:/usr/share/snmp/mibs/iana:/usr/share/snmp/mibs/ietf:/usr/local/share/snmp/mibs:/var/lib/snmp/mibs:/var/lib/snmp/mibs/iana:/var/lib/snmp/mibs/ietf:${PREFIX}/share/snmp/mibs"
 
 echo "Configuring Net-SNMP ${NETSNMP_VERSION} with minimal shared-library options..."
 ./configure \
@@ -66,7 +67,6 @@ echo "Configuring Net-SNMP ${NETSNMP_VERSION} with minimal shared-library option
     --disable-applications \
     --disable-manuals \
     --disable-scripts \
-    --disable-mibs \
     --without-perl-modules \
     --disable-embedded-perl \
     --with-openssl \
@@ -78,8 +78,28 @@ make -j"${NPROCS}"
 echo "Installing Net-SNMP to ${PREFIX}..."
 make install
 
+LIBDIR=$("${PREFIX}/bin/net-snmp-config" --libdir | sed 's/^-L//')
+INCLUDEDIR=$("${PREFIX}/bin/net-snmp-config" --includedir | sed 's/^-I//')
+EXEC_PREFIX=$("${PREFIX}/bin/net-snmp-config" --exec-prefix)
+LIBS=$("${PREFIX}/bin/net-snmp-config" --libs)
+CFLAGS=$("${PREFIX}/bin/net-snmp-config" --cflags | sed -e 's/[[:space:]]-Werror=declaration-after-statement//g' -e 's/[[:space:]]-Wstrict-prototypes//g')
+VERSION=$("${PREFIX}/bin/net-snmp-config" --version)
+mkdir -p "${LIBDIR}/pkgconfig"
+cat > "${LIBDIR}/pkgconfig/netsnmp.pc" <<EOF
+prefix=${PREFIX}
+exec_prefix=${EXEC_PREFIX}
+libdir=${LIBDIR}
+includedir=${INCLUDEDIR}
+
+Name: netsnmp
+Description: A collection of libraries for SNMP applications.
+Version: ${VERSION}
+Libs: -Wl,-rpath,${LIBDIR} ${LIBS}
+Cflags: ${CFLAGS}
+EOF
+
 if command -v ldconfig >/dev/null 2>&1; then
-    ldconfig "${PREFIX}/lib" 2>/dev/null || true
+    ldconfig "${LIBDIR}" 2>/dev/null || true
 fi
 
 echo "=== Net-SNMP ${NETSNMP_VERSION} installation complete ==="
