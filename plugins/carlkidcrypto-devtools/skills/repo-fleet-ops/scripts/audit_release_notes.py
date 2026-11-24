@@ -51,10 +51,14 @@ def check_release_body(body: str) -> List[str]:
     """Return a list of conformance issues found in a release body."""
     issues: List[str] = []
     stripped = (body or "").strip()
+    if "<!-- PROTECTED -->" in stripped:
+        return []
     if not stripped:
         return ["empty-body"]
     if "## " not in stripped:
         issues.append("missing-section-headers")
+    if "## What's Changed" in stripped and "Compared to:" not in stripped:
+        issues.append("default-github-notes")
     if "Compared to:" not in stripped and "**Full Changelog**:" not in stripped:
         issues.append("missing-changelog-link")
     if REDACTED_PYPI_RE.search(stripped):
