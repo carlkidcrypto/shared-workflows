@@ -39,8 +39,11 @@ EXCLUDED_TITLE_MARKERS = (
 RUN_ID_RE = re.compile(r"https://github\.com/[^/\s]+/[^/\s]+/actions/runs/(\d+)")
 LOG_429_MARKERS = (
     "ai_credits_rate_limit_error",
-    "errorCodes=[429]",
-    'errorTypes=["rate_limit"]',
+    "errorcodes=[429]",
+    'errortypes=["rate_limit"]',
+    "429 too many requests",
+    "quota_exceeded",
+    "quota exceeded",
 )
 
 
@@ -116,7 +119,7 @@ def verify_run_logs_429(gh_bin: str, full_repo: str, run_id: str) -> bool:
     )
     if res.returncode != 0:
         return False
-    combined = f"{res.stdout or ''}\n{res.stderr or ''}"
+    combined = f"{res.stdout or ''}\n{res.stderr or ''}".lower()
     return any(marker in combined for marker in LOG_429_MARKERS)
 
 

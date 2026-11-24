@@ -111,6 +111,9 @@ class TestRunIdAndLogVerification:
             "Error: ai_credits_rate_limit_error while invoking Copilot",
             "Response failed: errorCodes=[429] upstream",
             'Failure metadata: errorTypes=["rate_limit"]',
+            "agent: 429 Too Many Requests",
+            "upstream_error: quota_exceeded",
+            "Quota exceeded for Copilot API",
         ],
     )
     def test_verify_run_logs_429_positive(
