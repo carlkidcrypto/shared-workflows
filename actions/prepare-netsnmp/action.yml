@@ -38,6 +38,8 @@ runs:
         fi
         echo "${PREFIX}/bin" >> "${GITHUB_PATH}"
         echo "EZSNMP_NETSNMP_CONFIG=${PREFIX}/bin/net-snmp-config" >> "${GITHUB_ENV}"
+        LIBDIR=$("${PREFIX}/bin/net-snmp-config" --libdir | sed 's/^-L//')
+        echo "PKG_CONFIG_PATH=${LIBDIR}/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}" >> "${GITHUB_ENV}"
 
     - name: Prepare Net-SNMP on macOS
       if: ${{ runner.os == 'macOS' }}
@@ -51,3 +53,5 @@ runs:
         bash "${{ github.action_path }}/scripts/prepare_macos_netsnmp.sh"
         echo "${PREFIX}/bin" >> "${GITHUB_PATH}"
         echo "EZSNMP_NETSNMP_CONFIG=${PREFIX}/bin/net-snmp-config" >> "${GITHUB_ENV}"
+        LIBDIR=$("${PREFIX}/bin/net-snmp-config" --libdir | sed 's/^-L//')
+        echo "PKG_CONFIG_PATH=${LIBDIR}/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}" >> "${GITHUB_ENV}"

@@ -346,6 +346,10 @@ Building binary wheels across 6 OS/architecture runners and 7 Python targets (`c
    - Add a GitHub Actions runner cache step in `.github/actions/build-wheels/action.yml` for macOS and Windows runners to persist cached objects across runs.
 3. **High-Speed Build Frontend (`build[uv]`)**:
    - Configure `build-frontend = "build[uv]"` in `[tool.cibuildwheel]` to allow `cibuildwheel` to resolve and install build dependencies in milliseconds via `uv` (retaining standard `build` override for Windows ARM64 cross-compilation).
+4. **Net-SNMP 5.10 Source-Prefix Caching (`actions/prepare-netsnmp` + `actions/cache`)**:
+   - Building Net-SNMP 5.10 from source on every macOS/Linux CI job adds ~5–12 minutes per matrix cell and causes 15-minute job timeouts on `macos-latest`.
+   - Install Net-SNMP 5.10 into a dedicated cacheable prefix (e.g. `/opt/netsnmp-5.10` or `$RUNNER_TEMP/netsnmp-5.10`) using `carlkidcrypto/shared-workflows/actions/prepare-netsnmp` and wrap it with `actions/cache` keyed on OS, architecture, Net-SNMP version, and `prepare_*_netsnmp.sh` hash (plus a second cache for `EZSNMP_OBJECT_CACHE_DIR`).
+   - Always install standard MIBs (omit `--disable-mibs`) and generate `${LIBDIR}/pkgconfig/netsnmp.pc` with `-Wl,-rpath,${LIBDIR}` so Meson/CMake/Python builds resolve symbols and runtime libraries without `DYLD_LIBRARY_PATH` hacks.
 
 ---
 
