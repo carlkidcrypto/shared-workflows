@@ -8,37 +8,14 @@ Specifically highlights infrastructure-level runner cancellations
 
 import argparse
 import json
-import os
-import shutil
-import subprocess
 import sys
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _gh_common import find_gh, find_tool, run_gh  # noqa: E402
+
 FAILED_CONCLUSIONS = frozenset({"cancelled", "failure", "timed_out", "startup_failure"})
-
-
-def find_tool(name: str) -> str:
-    """Locate an executable in PATH or standard Homebrew/local bin directories."""
-    for candidate in (
-        shutil.which(name),
-        f"/opt/homebrew/bin/{name}",
-        f"/usr/local/bin/{name}",
-    ):
-        if candidate and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
-            return candidate
-    raise FileNotFoundError(
-        f"Executable `{name}` not found in PATH or standard locations"
-    )
-
-
-def find_gh() -> str:
-    """Locate the GitHub CLI executable."""
-    return find_tool("gh")
-
-
-def run_gh(gh_bin: str, args: List[str]) -> subprocess.CompletedProcess[str]:
-    """Run a `gh` subcommand and return the completed process."""
-    return subprocess.run([gh_bin, *args], text=True, capture_output=True)
 
 
 def parse_paginated_jobs(stdout: str) -> List[Dict[str, Any]]:

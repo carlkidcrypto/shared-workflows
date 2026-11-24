@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 from typing import Any, List, Optional, Tuple
@@ -19,17 +20,36 @@ DEFAULT_REPOS = [
     "os-specific-runner",
 ]
 
+STANDARD_BIN_DIRS = (
+    "/opt/homebrew/bin",
+    "/usr/local/bin",
+    "/usr/bin",
+)
+
+
+def find_tool(name: str, extra_candidates: Tuple[Optional[str], ...] = ()) -> str:
+    """Locate an executable in PATH or standard Homebrew/local bin directories."""
+    candidates = [
+        *extra_candidates,
+        shutil.which(name),
+        *(f"{bin_dir}/{name}" for bin_dir in STANDARD_BIN_DIRS),
+    ]
+    for candidate in candidates:
+        if candidate and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    raise FileNotFoundError(
+        f"Executable `{name}` not found in PATH or standard locations"
+    )
+
 
 def find_gh() -> str:
-    """Locate the GitHub CLI executable."""
-    for candidate in (
-        shutil.which("gh"),
-        "/opt/homebrew/bin/gh",
-        "/usr/local/bin/gh",
-    ):
-        if candidate:
-            return candidate
-    raise FileNotFoundError("GitHub CLI (`gh`) not found in PATH or standard locations")
+    """Locate the GitHub CLI executable even when Homebrew/local bins are not in PATH."""
+    try:
+        return find_tool("gh", extra_candidates=(os.environ.get("GH_BIN"),))
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(
+            "GitHub CLI (`gh`) not found in PATH or standard locations"
+        ) from exc
 
 
 def run_gh(

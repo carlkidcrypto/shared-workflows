@@ -8,6 +8,7 @@ presence, and unanswered pull request review comment threads (`in_reply_to`).
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -27,13 +28,15 @@ DEFAULT_REPOS = [
 
 
 def find_gh() -> str:
-    """Locate the GitHub CLI executable."""
+    """Locate the GitHub CLI executable even when Homebrew/local bins are not in PATH."""
     for candidate in (
+        os.environ.get("GH_BIN"),
         shutil.which("gh"),
         "/opt/homebrew/bin/gh",
         "/usr/local/bin/gh",
+        "/usr/bin/gh",
     ):
-        if candidate:
+        if candidate and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
             return candidate
     raise FileNotFoundError("GitHub CLI (`gh`) not found in PATH or standard locations")
 

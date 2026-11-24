@@ -10,32 +10,17 @@ polling with `--wait`, and optionally fetches `--log-failed` output or checks
 import argparse
 import json
 import re
-import shutil
-import subprocess
 import sys
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _gh_common import find_gh, run_gh  # noqa: E402
 
 GH_PENDING_EXIT_CODE = 8
 RUN_ID_RE = re.compile(r"/actions/runs/(\d+)")
 CHECK_JSON_FIELDS = "name,state,bucket,link,workflow,description"
-
-
-def find_gh() -> str:
-    """Locate the GitHub CLI executable."""
-    for candidate in (
-        shutil.which("gh"),
-        "/opt/homebrew/bin/gh",
-        "/usr/local/bin/gh",
-    ):
-        if candidate:
-            return candidate
-    raise FileNotFoundError("GitHub CLI (`gh`) not found in PATH or standard locations")
-
-
-def run_gh(gh_bin: str, args: List[str]) -> subprocess.CompletedProcess[str]:
-    """Run a `gh` subcommand and return the completed process."""
-    return subprocess.run([gh_bin, *args], text=True, capture_output=True)
 
 
 def extract_run_ids(checks: List[Dict[str, Any]]) -> List[str]:

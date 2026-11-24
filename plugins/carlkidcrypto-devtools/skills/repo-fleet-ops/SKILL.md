@@ -20,6 +20,30 @@ Standardized, non-destructive scripts for multi-repository maintenance across th
 
 ---
 
+## Quick Fleet CI & Maintenance One-Liners
+
+Prefer these bundled CLI one-liners over ad-hoc inline Python scripts (all scripts resolve `gh` robustly even when `/opt/homebrew/bin` or `/usr/local/bin` is not in `PATH`):
+
+```bash
+# Fleet-wide open PRs (behind_by, mergeable, pass/fail/pend/skip + failed checks) & recent PyPI/TestPyPI/NuGet/npm/release runs
+python3 ../ci-cd-workflow-optimization/scripts/check_open_prs.py --release-runs
+python3 ../ci-cd-workflow-optimization/scripts/check_open_prs.py --release-runs --json
+
+# Bulk PR merge-up via GitHub API (preview first, then apply)
+python3 ../ci-cd-workflow-optimization/scripts/merge_up_prs.py --all-repos --dry-run
+python3 ../ci-cd-workflow-optimization/scripts/merge_up_prs.py --all-repos
+
+# Rerun infra-cancelled (runner_id == 0) GitHub Actions jobs on a PR or run ID
+python3 ../ci-cd-workflow-optimization/scripts/rerun_cancelled_jobs.py --repo carlkidcrypto/<repo> --pr <num> --infra-only --dry-run
+python3 ../ci-cd-workflow-optimization/scripts/rerun_cancelled_jobs.py --repo carlkidcrypto/<repo> --pr <num> --infra-only
+
+# Fleet PR + Codecov + unanswered review-mail audit & worktree-isolated git merge-up
+python3 scripts/audit_open_prs.py
+python3 scripts/sync_prs_with_main.py --dry-run
+```
+
+---
+
 ## Bundled Scripts
 
 All scripts live in `scripts/` relative to this skill directory and support `--help` and `--json`.

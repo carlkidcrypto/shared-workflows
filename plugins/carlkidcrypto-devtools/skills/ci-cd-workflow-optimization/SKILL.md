@@ -93,9 +93,30 @@ When running multi-repository audits, PR sweeps, or CI updates across the `carlk
 
 ---
 
+## Quick Fleet & PR CLI One-Liners
+
+Avoid writing ad-hoc inline Python scripts for fleet CI checks, bulk merge-ups, or cancelled-job reruns. All bundled scripts resolve `gh` robustly (even when `/opt/homebrew/bin` or `/usr/local/bin` is not on `PATH`):
+
+```bash
+# 1. Scan all 8 carlkidcrypto repos: open PRs (behind_by, mergeable, pass/fail/pend/skip + failed names) + recent PyPI/TestPyPI/NuGet/npm/release runs
+python3 scripts/check_open_prs.py --release-runs
+python3 scripts/check_open_prs.py --release-runs --json
+python3 scripts/check_open_prs.py --failing-only
+
+# 2. Bulk merge-up open -> main PRs across all repos (preview first, then apply)
+python3 scripts/merge_up_prs.py --all-repos --dry-run
+python3 scripts/merge_up_prs.py --all-repos
+
+# 3. Detect & rerun cancelled/failed GitHub Actions jobs (especially runner_id == 0 infra drops)
+python3 scripts/rerun_cancelled_jobs.py --repo carlkidcrypto/ezsnmp --pr <num> --infra-only --dry-run
+python3 scripts/rerun_cancelled_jobs.py --repo carlkidcrypto/ezsnmp --pr <num> --infra-only
+```
+
+---
+
 ## Bundled Scripts
 
-- `scripts/check_open_prs.py` — Scans open PRs, mergeability, base/head topology, and CI pass/fail/pending summaries across all `carlkidcrypto` repositories (`--repo`, `--failing-only`, `--json`).
+- `scripts/check_open_prs.py` — Scans all 8 `carlkidcrypto` repositories in a single invocation for open PRs (`behind_by`, `mergeable`, base/head topology, `pass`/`fail`/`pending`/`skip` counts, and failed check names) plus recent `PyPI`/`TestPyPI`/`NuGet`/`npm`/`WinGet`/`release` workflow runs (`--repo`, `--failing-only`, `--release-runs`, `--release-limit`, `--json`).
 - `scripts/watch_pr_ci.py` — Monitors `gh pr checks` for a specific PR (`--pr <num> --repo <owner/repo> [--wait] [--interval 30] [--max-polls 20] [--json]`), handles pending exit code `8` cleanly, summarizes passed/pending/failed/skipped checks, and optionally fetches `--log-failed` or checks `rerun-failed-jobs` eligibility.
 - `scripts/gh_pr_mail.py` — Performs 2-pass PR review/MAIL comment discovery (GraphQL `reviewThreads` + REST `pulls/N/comments` + `issues/N/comments`), posts threaded replies (`--reply-to COMMENT_ID --commit SHA --summary TEXT`), and verifies no unpushed commits remain (`--check-unpushed`).
 - `scripts/rerun_cancelled_jobs.py` — Finds workflow runs on a PR or run ID with cancelled/failed jobs (especially `runner_id == 0` infrastructure cancellations) and triggers `rerun-failed-jobs` (`--repo owner/repo`, `--pr N` | `--run-id ID`, `--dry-run`).
