@@ -101,6 +101,7 @@ python3 scripts/audit_release_notes.py --repo os-specific-runner --tag v2.2.0 --
 
 - Audits releases via `gh api .../releases` for missing `auto_release_notes` sections (`Compared to:` / `**Full Changelog**:`, `## ` headers, or `(pypi.org/redacted)` links).
 - Runs in dry-run mode by default; pass `--apply` to backfill missing notes via `gh release edit`.
+- **Prefer Per-Repo Deterministic Generator**: For repositories that ship `.github/scripts/generate_release_notes.py` (`ezsnmp`, `ezsnmp_data_logger`, `purpleair_api`, `purpleair_data_logger`, `os-specific-runner`), always generate and publish release notes using `python3 .github/scripts/generate_release_notes.py --tag <tag> --publish` (or `--backfill --publish`) from a detached worktree on `origin/main` rather than hand-authoring release bodies, then verify conformance with `audit_release_notes.py --repo <repo>`.
 
 ### 6. Close `gh-aw` Copilot HTTP 429 Rate-Limit Issues
 
