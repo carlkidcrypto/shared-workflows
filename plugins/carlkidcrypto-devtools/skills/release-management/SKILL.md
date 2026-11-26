@@ -220,6 +220,7 @@ When requested to prepare a release:
      - Unit tests & docs: `cpp_tests/`, `python_tests/`, `README.rst`, `HOWTOAI.rst`, `bindings/README.rst`, `sphinx_docs_build/`.
      - CI workflows: `.github/workflows/` (`third-party-ref`, `ref:`, `pip install` pins).
      - Verify with `grep -rn "<old_dep_version>"` (excluding `CHANGELOG.md` and `docs/`) that zero stale upstream dependency pins remain.
+     - **Pre-Publish Upstream Pin & Historical Data Audit**: When preparing simultaneous beta/releases across a base library and its downstream data logger (e.g., both currently at `2026.11.22b0`), `bump_version.sh` can inadvertently replace upstream `ref: v<old>`, `third-party-ref`, `pip install` pins, `tools/prepare_*_source.py`, and `src/version.cpp` `*_target_version()` with the *unpublished* new version — causing CI checkouts to fail. Always audit `git status` / `git diff` after `bump_version.sh` to keep upstream dependency pins at the latest **published** tag until the upstream release ships, and revert any accidental replacements in immutable historical datasets (such as `analysis/data/*.csv`).
    - Verify package configs (`setup.cfg`, `pyproject.toml`, `package.json`), docs config (`conf.py`), READMEs, manifests, and test requirements.
    - Synchronize CI matrices (`tests.yml`, `sphinx_build.yml`, `verify_syntax.yml`, `.github/actions/build-distribution`). Ensure `sphinx_build.yml` specifies `python-version: "3.14"` and includes `pull_request` triggers targeting `main`.
    - Ensure `.nojekyll` is in place for GitHub Pages documentation deployments.
