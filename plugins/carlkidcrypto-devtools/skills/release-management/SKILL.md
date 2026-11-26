@@ -221,16 +221,22 @@ When requested to prepare a release:
      - CI workflows: `.github/workflows/` (`third-party-ref`, `ref:`, `pip install` pins).
      - Verify with `grep -rn "<old_dep_version>"` (excluding `CHANGELOG.md` and `docs/`) that zero stale upstream dependency pins remain.
    - Verify package configs (`setup.cfg`, `pyproject.toml`, `package.json`), docs config (`conf.py`), READMEs, manifests, and test requirements.
+   - **Stable Release Classifier Promotion**: When preparing a repository's first stable production release (`YYYY.M.D`, non-prerelease), promote PyPI `classifiers` in `pyproject.toml` / `setup.cfg` from `"Development Status :: 4 - Beta"` to `"Development Status :: 5 - Production/Stable"`.
    - Synchronize CI matrices (`tests.yml`, `sphinx_build.yml`, `verify_syntax.yml`, `.github/actions/build-distribution`). Ensure `sphinx_build.yml` specifies `python-version: "3.14"` and includes `pull_request` triggers targeting `main`.
    - Ensure `.nojekyll` is in place for GitHub Pages documentation deployments.
    - Update `sphinx_docs_build/source/software_requirements.rst` adhering to the <= 80 chars per line rule.
 
-4. **Verify Locally**:
+4. **Verify Locally & Across All Target Languages**:
    - Formatting check (`black --check .` / `npm run format:check`).
-   - Linter (`yamllint -c .yamllint .github/workflows/*.yml`, `oxlint`, `flake8`).
+   - Linter (`yamllint -c .yamllint .github/workflows/*.yml`, `actionlint -shellcheck=`, `oxlint`, `flake8`).
    - Typechecking & build (`npm run typecheck`, `npm run build`, `tsc`, `meson compile`).
-   - Test suite execution (`pytest`, `unittest`, `vitest`, GoogleTest).
-   - Documentation build with zero warnings (`sphinx-build -b html -W` or `make html SPHINXOPTS="-W"` with Python 3.14).
+   - **All Supported Target Language Tests (Mandatory for Multi-Language SWIG Repos)**: Every release in a multi-language repository (`purpleair_api`, `purpleair_data_logger`, `ezsnmp_data_logger`) must verify all **4 supported target languages** before handoff:
+     1. **Python**: `pytest` / `uv run --extra dev pytest`
+     2. **JavaScript (Node-API)**: `npm run build && npm test` (SWIG + `node-gyp` + Jest)
+     3. **C# (.NET)**: `dotnet test` locally (or verified green across `csharp_test.yml` OS/runtime matrix in CI when `dotnet` is unavailable locally)
+     4. **Go**: `go test ./...` locally (or verified green on `go_test.yml` CI when `go` is unavailable locally)
+   - **Valgrind Native Memory Leak Gate & SonarCloud Quality Gate**: For repositories with native C/C++ extensions, verify **0 native memory leaks** via `carlkidcrypto/shared-workflows/actions/check-valgrind-leaks` (or `check_valgrind_leaks.py` against Valgrind CI logs across supported Python versions) and confirm SonarCloud Quality Gate (`query_quality_gates.py`: `0` bugs, `0` vulnerabilities, `0` code smells, `0` security hotspots, `0.0%` duplication) before handoff.
+   - Documentation build with zero warnings (`sphinx-build -b html -W` or `make html SPHINXOPTS="-W"` with Python 3.14) and `README.rst` strict + badge SVG check (`validate_readme_rst.py`).
 
 5. **Commit, Push & Open Pull Request**:
    - Use targeted `git add <files>` (never blanket `git add .` or `-A`).
