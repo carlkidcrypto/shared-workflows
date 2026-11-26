@@ -1,0 +1,53 @@
+---
+name: Check Valgrind Leaks
+description: >-
+  Scan Valgrind memcheck logs and fail if native C/C++ library memory leaks
+  matching the configured symbol markers are detected.
+
+inputs:
+  logs:
+    description: Space- or newline-separated Valgrind log file paths or glob patterns
+    required: false
+    default: 'valgrind_*.out'
+  markers:
+    description: >-
+      Comma- or newline-separated native symbol/library substrings to match
+      (e.g. "PurpleAir,purpleair,curl_,libcurl"). Leave empty to flag all
+      non-ignored definitely/indirectly lost blocks.
+    required: false
+    default: ''
+  ignore-markers:
+    description: >-
+      Comma- or newline-separated symbol substrings to exclude from leak checks
+      (e.g. one-time Python/SWIG module init).
+    required: false
+    default: 'PyInit_,SWIG_mod_exec'
+  label:
+    description: Human-readable label shown in pass/fail output
+    required: false
+    default: 'native'
+
+runs:
+  using: composite
+  steps:
+    - name: Run Valgrind native leak check
+      shell: bash
+      env:
+        VALGRIND_LOGS: ${{ inputs.logs }}
+        VALGRIND_MARKERS: ${{ inputs.markers }}
+        VALGRIND_IGNORE_MARKERS: ${{ inputs.ignore-markers }}
+        VALGRIND_LABEL: ${{ inputs.label }}
+      run: |
+        set -euo pipefail
+        cmd=(python3 "${{ github.action_path }}/check_valgrind_leaks.py" --label "$VALGRIND_LABEL")
+        if [[ -n "$VALGRIND_MARKERS" ]]; then
+          cmd+=(--marker "$VALGRIND_MARKERS")
+        fi
+        if [[ -n "$VALGRIND_IGNORE_MARKERS" ]]; then
+          cmd+=(--ignore-marker "$VALGRIND_IGNORE_MARKERS")
+        fi
+        # Split logs on whitespace/newlines into separate glob arguments
+        while IFS= read -r pattern; do
+          [[ -n "$pattern" ]] && cmd+=("$pattern")
+        done < <(printf '%s\n' "$VALGRIND_LOGS" | tr ' ' '\n')
+        "${cmd[@]}"
