@@ -1,0 +1,35 @@
+---
+name: Update Versioned Sphinx Docs
+description: >-
+  Normalize html_V* directories, prune prerelease docs superseded by any formal
+  stable release (SemVer and CalSemVer), sort remaining versions newest-first,
+  and update VERSION_LIST_START/VERSION_LIST_END in the landing page index.rst.
+
+inputs:
+  docs-dir:
+    description: Directory containing html_v* versioned documentation folders.
+    required: false
+    default: 'docs'
+  landing-index:
+    description: Path to the Sphinx landing page index.rst containing VERSION_LIST sentinels.
+    required: false
+    default: 'sphinx_docs_build/landing/source/index.rst'
+  latest-label:
+    description: Link label for the Latest Version entry at the top of the list.
+    required: false
+    default: 'Latest Version'
+
+runs:
+  using: composite
+  steps:
+    - name: Prune superseded prerelease docs and update landing version list
+      shell: bash
+      env:
+        DOCS_DIR: ${{ inputs.docs-dir }}
+        LANDING_INDEX: ${{ inputs.landing-index }}
+        LATEST_LABEL: ${{ inputs.latest-label }}
+      run: |
+        python3 "${{ github.action_path }}/scripts/update_versioned_docs.py" \
+          --docs-dir "$DOCS_DIR" \
+          --landing-index "$LANDING_INDEX" \
+          --latest-label "$LATEST_LABEL"
