@@ -11,6 +11,8 @@ This reference centralizes the generic rules previously duplicated across per-re
   - Never edit compiled output under `docs/html*` directly; edit `.rst` sources in `sphinx_docs_build/` and ensure `.nojekyll` is present.
 - **Typo & Docstring Auditing**:
   - Run `python3 scripts/audit_docs.py` (from `carlkidcrypto/shared-workflows`) or `.github/scripts/audit_docs.py` to catch common spelling and class-casing typos before opening documentation PRs.
+- **Blog Audit Python Environment (`carlkidcrypto.github.io`)**:
+  - Always run `.github/scripts/audit_blog_posts.py` and `.github/scripts/validate_blog_code.py` with the repository's `.venv/bin/python` (which has `pyyaml` and `sphinx` installed), not system `python3`.
 
 ## 2. Pull Request Lifecycle (`pull-request-guide`)
 
@@ -42,3 +44,5 @@ This reference centralizes the generic rules previously duplicated across per-re
   - When debugging memory safety or undefined behavior, run under `ASAN_OPTIONS='halt_on_error=0' UBSAN_OPTIONS='halt_on_error=0'`.
 - **Net-SNMP `snmp_parse_args()` `getopt()` Reset & Locking**:
   - Before invoking `snmp_parse_args()`, reset glibc `getopt()` state with `optind = 0;` on Linux (and `optind = 1; optreset = 1;` on BSD/macOS) and hold `std::scoped_lock(g_netsnmp_setup_mutex, g_netsnmp_mib_mutex)` so concurrent threads do not race on global `getopt()` or MIB state.
+- **Net-SNMP `snmp_parse_args()` Console Noise Prevention (`ezsnmp`)**:
+  - Always route `snmp_parse_args()` through `ezsnmp_parse_args()` (`StderrCaptureGuard` RAII pipe) so Net-SNMP CLI parse diagnostics (e.g. `Invalid version specified after -v flag: 999`) are captured into `ParseErrorBase` instead of printed to `stderr`.

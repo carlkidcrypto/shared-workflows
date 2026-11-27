@@ -369,5 +369,17 @@ When building unified multi-language Meson/SWIG repositories (Python, Node-API, 
 6. **C# / .NET P/Invoke Library Naming & MinGW Linker Flags on Windows**:
    - SWIG generates `[DllImport("<name>")]` without a `lib` prefix, and Windows .NET P/Invoke searches for `<name>.dll` directly. Set `name_prefix: host_machine.system() == 'windows' ? '' : 'lib'` on Meson `shared_library` targets.
    - When compiling with MinGW GCC on Windows, link native libraries with `link_args: ['-static-libgcc', '-static-libstdc++']` to prevent missing MinGW runtime DLL errors during `dotnet test`.
+7. **CMake Net-SNMP 5.10 & Self-Contained Windows C# Native Linking**:
+   - Use `pkg_check_modules(NETSNMP IMPORTED_TARGET netsnmp>=5.10)` with `NETSNMP_LINK_LIBRARIES` resolution so CMake links against the discovered Net-SNMP 5.10 target rather than bare library names.
+   - Pass `-DCMAKE_DISABLE_FIND_PACKAGE_PostgreSQL=ON` when building self-contained Windows C# native bindings so CMake does not link runner-preinstalled `libpq.dll` into the native DLL.
+
+---
+
+### 24. Valgrind Native Leak Enforcement (`actions/check-valgrind-leaks`)
+
+- Wire `carlkidcrypto/shared-workflows/actions/check-valgrind-leaks@<40-char-sha>` in Valgrind CI jobs with repository-specific `--marker` substrings so real native memory leaks fail CI while ignoring unfreed CPython/SWIG runtime allocations:
+  - **`purpleair_api`**: `PurpleAir,purpleair,curl_,libcurl`
+  - **`ezsnmp`**: `netsnmp_init_mib_internals,netsnmp_parse_args,_sessionbase,_netsnmpbase,SessionBase::`
+- Pair with `carlkidcrypto/shared-workflows/actions/comment-valgrind@<40-char-sha>` to deduplicate Valgrind log stripping and collapsible Python 3.11–3.15 PR summary commenting.
 
 ---
