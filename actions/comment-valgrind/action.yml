@@ -1,0 +1,32 @@
+---
+name: Strip Valgrind Report
+description: >-
+  Extract trailing summary lines from a Valgrind memcheck log into a compact
+  stripped log file suitable for PR comments.
+
+inputs:
+  input-file:
+    description: Path to the raw Valgrind .out log file
+    required: true
+  output-file:
+    description: Path to write the stripped summary .log file
+    required: true
+  tail-lines:
+    description: Number of trailing lines to keep from the Valgrind report
+    required: false
+    default: '5'
+
+runs:
+  using: composite
+  steps:
+    - name: Strip Valgrind report
+      shell: bash
+      env:
+        VALGRIND_INPUT: ${{ inputs.input-file }}
+        VALGRIND_OUTPUT: ${{ inputs.output-file }}
+        VALGRIND_TAIL_LINES: ${{ inputs.tail-lines }}
+      run: |
+        python3 "${{ github.action_path }}/strip_valgrind.py" \
+          --input "$VALGRIND_INPUT" \
+          --output "$VALGRIND_OUTPUT" \
+          --tail-lines "$VALGRIND_TAIL_LINES"
