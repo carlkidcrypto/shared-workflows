@@ -98,6 +98,15 @@ on:
         required: false
         type: boolean
         default: true
+      skip-publish:
+        description: >-
+          Skip NuGet.org / GitHub Packages upload inside this reusable workflow
+          and only upload the packed .nupkg artifact (`nuget-package`) so the
+          caller workflow can publish with caller-side OIDC Trusted Publishing
+          (required by NuGet.org `job_workflow_ref` validation).
+        required: false
+        type: boolean
+        default: true
     secrets:
       nuget-api-key:
         description: Optional NuGet.org API key fallback (leave unset to use OIDC Trusted Publishing)
@@ -215,13 +224,14 @@ jobs:
           retention-days: ${{ inputs.artifact-retention-days }}
 
       - name: Authenticate with NuGet.org (OIDC Trusted Publishing)
-        if: ${{ env.NUGET_API_KEY == '' }}
+        if: ${{ !inputs.skip-publish && env.NUGET_API_KEY == '' }}
         id: nuget-login
         uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841  # v1
         with:
           user: ${{ inputs.nuget-user }}
 
       - name: Publish to NuGet.org
+        if: ${{ !inputs.skip-publish }}
         shell: bash
         env:
           OIDC_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
@@ -234,7 +244,7 @@ jobs:
           fi
 
       - name: Publish to GitHub Packages
-        if: ${{ inputs.publish-github-packages }}
+        if: ${{ !inputs.skip-publish && inputs.publish-github-packages }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}

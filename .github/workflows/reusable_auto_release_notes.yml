@@ -1,0 +1,77 @@
+---
+name: Reusable Auto Release Notes
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag to update (defaults to github.event.release.tag_name)
+        required: false
+        type: string
+        default: ''
+      backfill:
+        description: Backfill release notes for all existing non-protected releases
+        required: false
+        type: boolean
+        default: false
+      python-version:
+        description: Python version to run the release notes generator
+        required: false
+        type: string
+        default: '3.14'
+      script-path:
+        description: Path to per-repo release notes generator script
+        required: false
+        type: string
+        default: '.github/scripts/generate_release_notes.py'
+
+permissions:
+  contents: write
+
+jobs:
+  update-release-notes:
+    name: Update GitHub Release Notes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository with full history and tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Checkout shared-workflows fallback script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: carlkidcrypto/shared-workflows
+          path: .shared-workflows-fallback
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Generate and publish release notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_TAG: ${{ inputs.tag || github.event.release.tag_name }}
+          BACKFILL_ALL: ${{ inputs.backfill }}
+          SCRIPT_PATH: ${{ inputs.script-path }}
+        run: |
+          set -euo pipefail
+          if [[ -f "$SCRIPT_PATH" ]]; then
+            GENERATOR="$SCRIPT_PATH"
+          else
+            GENERATOR=".shared-workflows-fallback/scripts/generate_release_notes.py"
+          fi
+
+          if [[ "$BACKFILL_ALL" == "true" ]]; then
+            python3 "$GENERATOR" --backfill --publish
+          else
+            if [[ -z "$TARGET_TAG" ]]; then
+              echo "::error::No release tag provided and github.event.release.tag_name is empty."
+              exit 1
+            fi
+            python3 "$GENERATOR" --tag "$TARGET_TAG" --publish
+          fi
