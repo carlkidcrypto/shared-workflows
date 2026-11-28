@@ -64,6 +64,11 @@ on:
         required: false
         type: boolean
         default: true
+      enable-ccache:
+        description: Whether to enable ccache with actions/cache for native C/C++ (node-gyp) builds
+        required: false
+        type: boolean
+        default: false
     secrets:
       npm-token:
         description: Optional npm auth token fallback (leave unset to use OIDC Trusted Publishing)
@@ -132,6 +137,48 @@ jobs:
             exit 1
           fi
 
+      - name: Configure parallel build environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          CPU_COUNT=$(nproc)
+          {
+            echo "JOBS=max"
+            echo "npm_config_jobs=max"
+            echo "MAKEFLAGS=-j${CPU_COUNT}"
+            echo "CMAKE_BUILD_PARALLEL_LEVEL=${CPU_COUNT}"
+          } >> "$GITHUB_ENV"
+          echo "Configured parallel builds for ${CPU_COUNT} CPU cores."
+
+      - name: Restore ccache for native builds
+        if: ${{ inputs.enable-ccache }}
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.cache/ccache
+          key: ${{ runner.os }}-npm-ccache-${{ inputs.working-directory }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-npm-ccache-${{ inputs.working-directory }}-
+            ${{ runner.os }}-npm-ccache-
+
+      - name: Configure ccache for native builds
+        if: ${{ inputs.enable-ccache }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v ccache >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ccache
+          fi
+          mkdir -p "${HOME}/.cache/ccache"
+          {
+            echo "CCACHE_DIR=${HOME}/.cache/ccache"
+            echo "CCACHE_COMPRESS=1"
+            echo "CCACHE_MAXSIZE=500M"
+            echo "CC=ccache gcc"
+            echo "CXX=ccache g++"
+          } >> "$GITHUB_ENV"
+          CCACHE_DIR="${HOME}/.cache/ccache" ccache -z
+
       - name: Run setup command
         if: ${{ inputs.setup-cmd != '' }}
         shell: bash
@@ -148,6 +195,11 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
         shell: bash
         run: ${{ inputs.build-cmd }}
+
+      - name: Show ccache statistics
+        if: ${{ inputs.enable-ccache }}
+        shell: bash
+        run: ccache -s
 
       - name: Run tests and checks
         if: ${{ inputs.test-cmd != '' }}
